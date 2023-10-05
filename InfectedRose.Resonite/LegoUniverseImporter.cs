@@ -79,10 +79,10 @@ public class LegoUniverseImporter : ResoniteMod
     private static void ParseNiFile(NiFile file, Slot header)
     {
         // Could we use reflection to make this less repetitive?
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Version", (uint)file.Header.Version);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Endianness", (byte)file.Header.Endian);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Version String", file.Header.VersionString);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "User Version", file.Header.UserVersion);
+        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Version", (uint)file.Header.Version);
+        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Endianness", (byte)file.Header.Endian);
+        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Version String", file.Header.VersionString);
+        header = AttachDynamicValueVariableWithSpaceAndValue(header, "User Version", file.Header.UserVersion);
 
         // Need to define this as NodeInfo has two members, not one
         var sNodeInfo = header.AddSlot("Node Info");
@@ -95,10 +95,10 @@ public class LegoUniverseImporter : ResoniteMod
             sNodeInfo.AttachComponent<DynamicValueVariable<uint>>().Value.Value = item.Size;
         }
 
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Node Types", "Type", file.Header.NodeTypes);
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Strings", "String", file.Header.Strings);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
+        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Node Types", "Type", file.Header.NodeTypes);
+        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Strings", "String", file.Header.Strings);
+        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
+        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
 
         var sBlock = header.AddSlot("Block");
         if (file.Blocks[0] is NiNode root) // Will contain 1 element
@@ -133,7 +133,8 @@ public class LegoUniverseImporter : ResoniteMod
                     break;
                 case NiSpotLight sLight:
                     var sLightSlot = "Spot Light";
-                    AttachLightWithValues(slot.AddSlot(sLightSlot), sLightSlot, LightType.Spot, sLight.Diffuse);
+                    var light = AttachLightWithValues(slot.AddSlot(sLightSlot), sLightSlot, LightType.Spot, sLight.Diffuse);
+                    light.SpotAngle.Value = sLight.OuterSpotAngle;
                     break;
                 case NiPointLight pLight:
                     var pLightSlot = "Point Light";
@@ -143,23 +144,26 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
-    internal static void AttachLightWithValues(Slot slot, string s, LightType lightType, Color3 diffuse)
+    internal static Light AttachLightWithValues(Slot slot, string s, LightType lightType, Color3 diffuse)
     {
         var lightSlot = slot.AddSlot(s);
         var light = lightSlot.AttachComponent<Light>();
         light.LightType.Value = lightType;
         light.Color.Value = diffuse.ToFrooxEngine();
+        light.ShadowType.Value = ShadowType.None; // TODO Test me!
+        return light;
     }
 
-    internal static void AttachDynamicValueVariableWithSpaceAndValue<T>(Slot header, string s, T value)
+    internal static Slot AttachDynamicValueVariableWithSpaceAndValue<T>(Slot header, string s, T value)
     {
         var slot = header.AddSlot(s);
         var dVar = slot.AttachComponent<DynamicValueVariable<T>>();
         dVar.VariableName.Value = DYN_VAR_SPACE_PREFIX + value.ToString();
         dVar.Value.Value = value;
+        return slot;
     }
 
-    internal static void AttachDynamicValueVariableCollectionWithSpaceAndValues<T>(Slot header, string s, string sc, T[] collection)
+    internal static Slot AttachDynamicValueVariableCollectionWithSpaceAndValues<T>(Slot header, string s, string sc, T[] collection)
     {
         var slot = header.AddSlot(s);
         foreach (var item in collection)
@@ -169,5 +173,6 @@ public class LegoUniverseImporter : ResoniteMod
             dVar.VariableName.Value = DYN_VAR_SPACE_PREFIX + item.ToString();
             dVar.Value.Value = item;
         }
+        return slot;
     }
 }
