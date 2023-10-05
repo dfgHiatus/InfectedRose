@@ -7,6 +7,7 @@ using RakDotNet.IO;
 using ResoniteModLoader;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using static FrooxEngine.RadiantUI_Constants;
 
@@ -102,14 +103,15 @@ public class LegoUniverseImporter : ResoniteMod
 
         var sBlock = header.AddSlot("Block");
         if (file.Blocks[0] is NiNode root) // Will contain 1 element
-            ParseNiNode(sBlock, root, null);
+            ParseNiNode(new NiFileContext(), sBlock, root, null);
     }
 
-    private static void ParseNiNode(Slot slot, NiNode obj, NiNode parent)
+    private static void ParseNiNode(NiFileContext context, Slot slot, NiNode obj, NiNode parent)
     {
+        context.ObjectSlots.Add(obj, slot);
+        
         slot.LocalPosition = new float3(obj.Position.X, obj.Position.Y, obj.Position.Z);
-        var q = Quaternion.CreateFromRotationMatrix(obj.Rotation.FourByFour);
-        slot.LocalRotation = new floatQ(q.X, q.Y, q.Z, q.W);
+        slot.LocalRotation = obj.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(obj.Scale, obj.Scale, obj.Scale);
 
         for (int i = 0; i < obj.Children.Length; i++)
@@ -118,7 +120,11 @@ public class LegoUniverseImporter : ResoniteMod
             {
                 case NiNode node:
                     var sNode = slot.AddSlot("Node");
-                    ParseNiNode(sNode, node, obj);
+                    ParseNiNode(context, sNode, node, obj);
+                    break;
+                case NiTriShape triShape:
+                    var triShapeNode = slot.AddSlot("Mesh");
+                    ParseTriShape(context, triShapeNode, triShape);
                     break;
             }
         }
@@ -141,6 +147,32 @@ public class LegoUniverseImporter : ResoniteMod
                     AttachLightWithValues(slot.AddSlot(pLightSlot), pLightSlot, LightType.Point, pLight.Diffuse);
                     break;
             }
+        }
+    }
+
+    internal static void ParseTriShape(NiFileContext context, Slot slot, NiTriShape shape)
+    {
+        context.ObjectSlots.Add(shape, slot);
+        
+        slot.LocalPosition = new float3(shape.Position.X, shape.Position.Y, shape.Position.Z);
+        slot.LocalRotation = shape.Rotation.ToFrooxEngine();
+        slot.LocalScale = new float3(shape.Scale,shape.Scale,shape.Scale);
+
+        var skinned = shape.Skin.Value != null;
+        var mesh = (shape.Data.Value as NiTriShapeData).ToFrooxEngine(shape.Skin.Value);
+
+        if (skinned)
+        {
+            var renderer = slot.AttachComponent<SkinnedMeshRenderer>();
+            var bones = shape.Skin.Value.Bones;
+            foreach (var bone in bones)
+            {
+                renderer.Bones.Add(context.ObjectSlots.TryGetValue(bone.Value, out var boneSlot) ? boneSlot : null);
+            }
+        }
+        else
+        {
+            var renderer = slot.AttachComponent<MeshRenderer>();
         }
     }
 
@@ -175,4 +207,9 @@ public class LegoUniverseImporter : ResoniteMod
         }
         return slot;
     }
+}
+
+internal class NiFileContext
+{
+    public Dictionary<NiObject, Slot> ObjectSlots = new();
 }
