@@ -7,13 +7,15 @@ using RakDotNet.IO;
 using ResoniteModLoader;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
+using static FrooxEngine.RadiantUI_Constants;
 
 namespace InfectedRose.Resonite;
 
 public class LegoUniverseImporter : ResoniteMod
 {
     public override string Name => "Lego Universe Importer";
-    public override string Author => "dfgHiatus and FroZen";
+    public override string Author => "dfgHiatus and Fro Zen";
     public override string Version => "1.0.0";
 
     internal const string NIF_EXTENSION = ".nif";
@@ -98,14 +100,58 @@ public class LegoUniverseImporter : ResoniteMod
         AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
         AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
 
-        for (int i = 0; i < file.Blocks.Length; i++)
+        var sBlock = header.AddSlot("Block");
+        if (file.Blocks[0] is NiNode root) // Will contain 1 element
+            ParseNiNode(sBlock, root, null);
+    }
+
+    private static void ParseNiNode(Slot slot, NiNode obj, NiNode parent)
+    {
+        slot.LocalPosition = new float3(obj.Position.X, obj.Position.Y, obj.Position.Z);
+        var q = Quaternion.CreateFromRotationMatrix(obj.Rotation.FourByFour);
+        slot.LocalRotation = new floatQ(q.X, q.Y, q.Z, q.W);
+        slot.LocalScale = new float3(obj.Scale, obj.Scale, obj.Scale);
+
+        for (int i = 0; i < obj.Children.Length; i++)
         {
-            var sBlock = header.AddSlot($"Block {i}");
-            ParseNiFile(file.Blocks[i].File, sBlock);
+            switch (obj.Children[i].Value)
+            {
+                case NiNode node:
+                    var sNode = slot.AddSlot("Node");
+                    ParseNiNode(sNode, node, obj);
+                    break;
+            }
+        }
+
+        for (int i = 0; i < obj.Effects.Length; i++)
+        {
+            switch (obj.Effects[i].Value)
+            {
+                case NiDirectionalLight dLight:
+                    var dLightSlot = slot.AddSlot();
+                    AttachLightWithValues(dLightSlot, "Directional Light", LightType.Directional, dLight.Diffuse);
+                    break;
+                case NiSpotLight sLight:
+                    var sLightSlot = slot.AddSlot();
+                    AttachLightWithValues(sLightSlot, "Spot Light", LightType.Spot, sLight.Diffuse);
+                    break;
+                case NiPointLight pLight:
+                    var pLightSlot = slot.AddSlot();
+                    AttachLightWithValues(pLightSlot, "Point Light", LightType.Point, pLight.Diffuse);
+                    break;
+            }
         }
     }
 
-    private static void AttachDynamicValueVariableWithSpaceAndValue<T>(Slot header, string s, T value)
+    internal static void AttachLightWithValues(Slot slot, string s, LightType lightType, Color3 diffuse)
+    {
+        var lightSlot = slot.AddSlot(s);
+        var light = lightSlot.AttachComponent<Light>();
+        light.LightType.Value = lightType;
+        light.Color.Value = diffuse.ToFrooxEngine();
+    }
+
+    internal static void AttachDynamicValueVariableWithSpaceAndValue<T>(Slot header, string s, T value)
     {
         var slot = header.AddSlot(s);
         var dVar = slot.AttachComponent<DynamicValueVariable<T>>();
@@ -113,7 +159,7 @@ public class LegoUniverseImporter : ResoniteMod
         dVar.Value.Value = value;
     }
 
-    private static void AttachDynamicValueVariableCollectionWithSpaceAndValues<T>(Slot header, string s, string sc, T[] collection)
+    internal static void AttachDynamicValueVariableCollectionWithSpaceAndValues<T>(Slot header, string s, string sc, T[] collection)
     {
         var slot = header.AddSlot(s);
         foreach (var item in collection)
