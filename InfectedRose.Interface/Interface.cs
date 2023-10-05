@@ -114,8 +114,11 @@ namespace InfectedRose.Interface
                 if (!File.Exists(npc))
                 {
                     var sample = new Npc();
-
+#if NETSTANDARD2_1_OR_GREATER
                     await using (var stream = File.Create(npc))
+#else
+                    using (var stream = File.Create(npc))
+#endif
                     {
                         serializer.Serialize(stream, sample);
                     }
@@ -126,8 +129,11 @@ namespace InfectedRose.Interface
                 }
 
                 Console.WriteLine($"Building {npc}.");
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using (var stream = File.OpenRead(npc))
+#else
+                using (var stream = File.Create(npc))
+#endif
                 {
                     var instance = (Npc) serializer.Deserialize(stream);
 
@@ -147,8 +153,11 @@ namespace InfectedRose.Interface
                 if (!File.Exists(mission))
                 {
                     var sample = new Mission();
-
+#if NETSTANDARD2_1_OR_GREATER
                     await using (var stream = File.Create(mission))
+#else
+                    using (var stream = File.Create(mission))
+#endif
                     {
                         serializer.Serialize(stream, sample);
                     }
@@ -159,8 +168,11 @@ namespace InfectedRose.Interface
                 }
 
                 Console.WriteLine($"Building {mission}.");
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using (var stream = File.OpenRead(mission))
+#else
+                using (var stream = File.OpenRead(mission))
+#endif
                 {
                     var instance = (Mission) serializer.Deserialize(stream);
 
@@ -181,8 +193,11 @@ namespace InfectedRose.Interface
 
                 return;
             }
-
+#if NETSTANDARD2_1_OR_GREATER
             await File.WriteAllLinesAsync(Configuration.SqlOutput, Sql);
+#else
+            File.WriteAllLines(Configuration.SqlOutput, Sql);
+#endif
 
             Console.WriteLine("SQL commands saved.");
 
@@ -211,8 +226,11 @@ namespace InfectedRose.Interface
             if (!File.Exists("config.xml"))
             {
                 var sample = new Configuration();
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using (var stream = File.Create("config.xml"))
+#else
+                using (var stream = File.Create("config.xml"))
+#endif
                 {
                     serializer.Serialize(stream, sample);
                 }
@@ -223,8 +241,11 @@ namespace InfectedRose.Interface
 
                 return;
             }
-
+#if NETSTANDARD2_1_OR_GREATER
             await using (var stream = File.OpenRead("config.xml"))
+#else
+            using (var stream = File.OpenRead("config.xml"))
+#endif
             {
                 Configuration = (Configuration) serializer.Deserialize(stream);
             }

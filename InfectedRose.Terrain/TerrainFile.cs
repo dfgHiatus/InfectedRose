@@ -194,8 +194,11 @@ namespace InfectedRose.Terrain
                                 color.Green,
                                 color.Blue
                             };
-
+#if NETSTANDARD2_1_OR_GREATER
                             var value = BitConverter.ToSingle(bytes);
+#else
+                            var value = BitConverter.ToSingle(bytes, 0);
+#endif
 
                             chunk.HeightMap.SetValue(x, y, value);
                         }

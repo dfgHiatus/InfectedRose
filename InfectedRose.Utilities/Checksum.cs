@@ -125,8 +125,11 @@ namespace InfectedRose.Utilities
             //
             
             var luz = new LuzFile();
-
+#if NETSTANDARD2_1_OR_GREATER
             await using (var stream = File.OpenRead(zone))
+#else
+            using (var stream = File.OpenRead(zone))
+#endif
             {
                 using var reader = new BitReader(stream);
 
@@ -169,8 +172,11 @@ namespace InfectedRose.Utilities
                     //
                     
                     var lvl = new LvlFile();
-
+#if NETSTANDARD2_1_OR_GREATER
                     await using (var stream = File.OpenRead(Path.Combine(root, scene.FileName)))
+#else
+                    using (var stream = File.OpenRead(Path.Combine(root, scene.FileName)))
+#endif
                     {
                         using var reader = new BitReader(stream);
 

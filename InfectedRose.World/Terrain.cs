@@ -70,8 +70,11 @@ namespace InfectedRose.World
             if (File.Exists(LightMap))
             {
                 Console.WriteLine($"Applying light map.");
-            
+#if NETSTANDARD2_1_OR_GREATER
                 var data = await File.ReadAllBytesAsync(LightMap);
+#else
+                var data = File.ReadAllBytes(LightMap);
+#endif
 
                 foreach (var chunk in editor.Source.Chunks)
                 {
@@ -82,9 +85,11 @@ namespace InfectedRose.World
             if (File.Exists(BlendMap))
             {
                 Console.WriteLine($"Applying blend map.");
-
+#if NETSTANDARD2_1_OR_GREATER
                 var data = await File.ReadAllBytesAsync(BlendMap);
-
+#else
+                var data = File.ReadAllBytes(BlendMap);
+#endif
                 foreach (var chunk in editor.Source.Chunks)
                 {
                     chunk.Blendmap.Data = data;

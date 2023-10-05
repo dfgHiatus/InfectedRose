@@ -22,8 +22,11 @@ namespace InfectedRose.Pipeline
         public static async Task ExportToWavefrontAsync(this LuzFile @this, AccessDatabase database, string source, string resources, string result)
         {
             TerrainFile terrain;
-            
+#if NETSTANDARD2_1_OR_GREATER
             await using (var stream = File.OpenRead(Path.Combine(source, @this.TerrainFileName)))
+#else
+            using (var stream = File.OpenRead(Path.Combine(source, @this.TerrainFileName)))
+#endif
             {
                 using var reader = new BitReader(stream);
                 
@@ -37,9 +40,11 @@ namespace InfectedRose.Pipeline
             for (var i = 0; i < @this.Scenes.Length; i++)
             {
                 var scene = @this.Scenes[i];
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using var stream = File.OpenRead(Path.Combine(source, scene.FileName));
-
+#else
+                using var stream = File.OpenRead(Path.Combine(source, scene.FileName));
+#endif
                 using var reader = new BitReader(stream);
                 
                 var level = new LvlFile();

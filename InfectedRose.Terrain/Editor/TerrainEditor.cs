@@ -75,7 +75,11 @@ namespace InfectedRose.Terrain.Editor
 
         public static async Task<TerrainEditor> OpenAsync(string path)
         {
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.OpenRead(path);
+#else
+            using var stream = File.OpenRead(path);
+#endif
 
             using var reader = new BitReader(stream);
 
@@ -91,9 +95,11 @@ namespace InfectedRose.Terrain.Editor
             var heightMap = Source.GenerateHeightMap();
 
             Source.ApplyHeightMap(heightMap);
-
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.Create(path);
-
+#else
+            using var stream = File.Create(path);
+#endif
             using var writer = new BitWriter(stream);
 
             Source.Serialize(writer);

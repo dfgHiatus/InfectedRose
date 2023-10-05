@@ -15,8 +15,11 @@ namespace InfectedRose.Interface
         public static async Task InsertAsync(string path)
         {
             LuzFile luz;
-
+#if NETSTANDARD2_1_OR_GREATER
             await using (var stream = File.OpenRead(path))
+#else
+            using (var stream = File.OpenRead(path))
+#endif
             {
                 using var reader = new BitReader(stream);
                 
@@ -36,8 +39,11 @@ namespace InfectedRose.Interface
                 File.SetAttributes(path, attributes);
                 
                 luz.WorldId = (uint) worlds.ClaimKey(100);
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using var stream = File.Create(path);
+#else
+                using var stream = File.Create(path);
+#endif
                 
                 using var writer = new BitWriter(stream);
 

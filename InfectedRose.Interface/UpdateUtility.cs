@@ -23,8 +23,11 @@ namespace InfectedRose.Interface
             LuzFile luz;
 
             var root = Path.GetDirectoryName(path);
-            
+#if NETSTANDARD2_1_OR_GREATER
             await using (var stream = File.OpenRead(path))
+#else
+            using (var stream = File.OpenRead(path))
+#endif
             {
                 using var reader = new BitReader(stream);
                 
@@ -38,8 +41,11 @@ namespace InfectedRose.Interface
                 LvlFile lvl;
                 
                 var scenePath = Path.Combine(root, scene.FileName);
-                
+#if NETSTANDARD2_1_OR_GREATER
                 await using (var stream = File.OpenRead(scenePath))
+#else
+                using (var stream = File.OpenRead(scenePath))
+#endif
                 {
                     using var reader = new BitReader(stream);
                 
@@ -53,8 +59,11 @@ namespace InfectedRose.Interface
                     Console.WriteLine($"Converting {scene.SceneName} to new.");
                     
                     lvl.ConvertToNew();
-                
+#if NETSTANDARD2_1_OR_GREATER
                     await using (var stream = File.Create(scenePath))
+#else
+                    using (var stream = File.Create(scenePath))
+#endif
                     {
                         using var writer = new BitWriter(stream);
 
@@ -77,8 +86,11 @@ namespace InfectedRose.Interface
                 luz.Version = 0x26;
 
                 luz.WorldId = (uint) id;
-
+#if NETSTANDARD2_1_OR_GREATER
                 await using (var stream = File.Create(path))
+#else
+                using (var stream = File.Create(path))
+#endif
                 {
                     using var writer = new BitWriter(stream);
 

@@ -17,14 +17,21 @@ namespace InfectedRose.Interface
             
             if (File.Exists(file))
             {
+#if NETSTANDARD2_1_OR_GREATER
                 await using var stream = File.OpenRead(file);
+#else
+                using var stream = File.OpenRead(file);
+#endif
 
                 zone = (Zone) serializer.Deserialize(stream);
             }
             else
             {
+#if NETSTANDARD2_1_OR_GREATER
                 await using var stream = File.Create(file);
-
+#else
+                using var stream = File.Create(file);
+#endif
                 serializer.Serialize(stream, zone);
                 
                 Console.WriteLine($"Created zone config file: \"{file}\".");

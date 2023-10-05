@@ -63,8 +63,11 @@ namespace InfectedRose.World
             {
                 RevisionNumber = Revision
             };
-
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.Create(Path.Combine(path, scene.FileName));
+#else
+            using var stream = File.Create(Path.Combine(path, scene.FileName));
+#endif
 
             using var writer = new BitWriter(stream);
 

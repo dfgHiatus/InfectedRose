@@ -36,8 +36,11 @@ namespace InfectedRose.Terrain
                     color.Blue,
                     color.Alpha,
                 };
-
+#if NETSTANDARD2_1_OR_GREATER
                 var value = BitConverter.ToUInt32(bytes);
+#else
+                var value = BitConverter.ToUInt32(bytes, 0);
+#endif
 
                 writer.Write(value);
             }

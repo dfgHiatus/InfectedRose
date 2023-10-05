@@ -40,8 +40,11 @@ namespace InfectedRose.Triggers
                     {
                         if (int.TryParse(filePath, out fileId)) break;
                     }
-
+#if NETSTANDARD2_1_OR_GREATER
                     await using var stream = File.OpenRead(entry);
+#else
+                    using var stream = File.OpenRead(entry);
+#endif
 
                     var triggerCollection = (TriggerCollection) serializer.Deserialize(stream);
 

@@ -159,8 +159,11 @@ namespace InfectedRose.Database
 
         public static async Task<AccessDatabase> OpenAsync(string file)
         {
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.OpenRead(file);
-
+#else
+            using var stream = File.OpenRead(file);
+#endif
             using var reader = new BitReader(stream);
 
             var source = new DatabaseFile();
@@ -172,8 +175,11 @@ namespace InfectedRose.Database
 
         public async Task SaveAsync(string file)
         {
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.Create(file);
-
+#else
+            using var stream = File.Create(file);
+#endif
             using var reader = new BitWriter(stream);
 
             Source.Serialize(reader);

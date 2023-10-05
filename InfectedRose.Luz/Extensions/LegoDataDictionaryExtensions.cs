@@ -37,8 +37,14 @@ namespace InfectedRose.Luz.Extensions
 
                     continue;
                 }
+#if NETSTANDARD2_1_OR_GREATER
                 var type = int.Parse(typeAndValue[..firstColon]);
                 var val = typeAndValue[(firstColon + 1)..];
+#else
+                var type = int.Parse(typeAndValue.Substring(0, firstColon));
+                var val = typeAndValue.Substring(firstColon + 1);
+#endif
+                
                 @this.Add(key, type, val);
             }
         }

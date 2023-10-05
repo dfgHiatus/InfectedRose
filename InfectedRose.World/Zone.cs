@@ -53,8 +53,11 @@ namespace InfectedRose.World
             {
                 Directory.CreateDirectory(root);
             }
-            
+#if NETSTANDARD2_1_OR_GREATER
             await using var stream = File.Create(zoneFile);
+#else
+            using var stream = File.Create(zoneFile);
+#endif
 
             using var writer = new BitWriter(stream);
 

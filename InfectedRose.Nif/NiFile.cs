@@ -67,7 +67,11 @@ namespace InfectedRose.Nif
                 
                 readingTasks[i] = Task.Run(async () =>
                 {
+#if NETSTANDARD2_1_OR_GREATER
                     await using var stream = new MemoryStream(data);
+#else
+                    using var stream = new MemoryStream(data);
+#endif
 
                     using var blockReader = new BitReader(stream);
                     

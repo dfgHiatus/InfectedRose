@@ -1,11 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netstandard2.1</TargetFramework>
+        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="RakDotNet.IO" Version="1.0.1" />
+        <!--<ProjectReference Include="/mnt/LocalDisk2/Program Files/Development/RakDotNet.IO/RakDotNet.IO/RakDotNet.IO.csproj" Condition="'$(TargetFramework)' == 'netstandard2.0'" />-->
+        <PackageReference Include="RakDotNet.IO" Version="1.0.1" Condition="'$(TargetFramework)' != 'netstandard2.0'" />
+        <PackageReference Include="System.Memory" Version="4.5.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="../../RakDotNet.IO/RakDotNet.IO/bin/Debug/netstandard2.0/RakDotNet.IO.dll" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
     </ItemGroup>
 
 </Project>
