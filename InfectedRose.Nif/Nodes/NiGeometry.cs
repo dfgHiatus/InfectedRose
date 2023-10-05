@@ -9,13 +9,8 @@ namespace InfectedRose.Nif
         
         public NiRef<NiSkinInstance> Skin { get; set; }
         
-        public string[] Materials { get; set; }
+        public MaterialData MaterialData { get; set; }
         
-        public NiRef<NiExtraData>[] MaterialExtraData { get; set; }
-        
-        public int ActiveMaterial { get; set; }
-        
-        public bool Dirty { get; set; }
 
         public override void Deserialize(BitReader reader)
         {
@@ -25,20 +20,7 @@ namespace InfectedRose.Nif
 
             Skin = reader.Read<NiRef<NiSkinInstance>>(File);
 
-            Materials = new string[reader.Read<uint>()];
-
-            MaterialExtraData = new NiRef<NiExtraData>[Materials.Length];
-
-            for (var i = 0; i < Materials.Length; i++)
-            {
-                Materials[i] = reader.ReadNiString();
-
-                MaterialExtraData[i] = reader.Read<NiRef<NiExtraData>>(File);
-            }
-
-            ActiveMaterial = reader.Read<int>();
-
-            Dirty = reader.Read<byte>() != 0;
+            MaterialData = reader.Read<MaterialData>();
         }
 
         public override void Serialize(BitWriter writer)
@@ -49,18 +31,7 @@ namespace InfectedRose.Nif
 
             writer.Write(Skin);
 
-            writer.Write((uint) Materials.Length);
-
-            for (var i = 0; i < Materials.Length; i++)
-            {
-                writer.WriteNiString(Materials[i]);
-
-                writer.Write(MaterialExtraData[i]);
-            }
-
-            writer.Write(ActiveMaterial);
-
-            writer.Write((byte) (Dirty ? 1 : 0));
+            writer.Write(MaterialData);
         }
     }
 }

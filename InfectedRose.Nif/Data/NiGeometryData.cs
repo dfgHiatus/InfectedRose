@@ -8,11 +8,17 @@ namespace InfectedRose.Nif
     {
         public int GroupId { get; set; }
 
+        public ushort NumVertices;
+
         public byte KeepFlags { get; set; }
 
         public byte CompressFlags { get; set; }
 
+        public bool HasVertices;
+
         public Vector3[] Vertices { get; set; }
+        public ushort DataFlags { get; set; }
+        public bool HasNormals;
 
         public Vector3[] Normals { get; set; }
 
@@ -20,14 +26,13 @@ namespace InfectedRose.Nif
 
         public float Radius { get; set; }
 
+        public bool HasVertexColors;
+
         public Color4[] VertexColors { get; set; }
 
         public ushort ConsistencyFlags { get; set; }
 
         public NiRef<AbstractAdditionalGeometryData> AdditionData { get; set; }
-
-        public ushort NumUvSets { get; set; }
-
         public Vector2[][] Uv { get; set; }
 
         public Vector3[] Tangents { get; set; }
@@ -53,7 +58,7 @@ namespace InfectedRose.Nif
                 writer.Write(vertex);
             }
 
-            writer.Write(NumUvSets);
+            writer.Write(DataFlags);
 
             writer.Write((byte) (Normals.Length > 0 ? 1 : 0));
 
@@ -62,7 +67,7 @@ namespace InfectedRose.Nif
                 writer.Write(normal);
             }
 
-            if (Normals.Length > 0 & (NumUvSets & 61440) != 0)
+            if (Normals.Length > 0 & (DataFlags & 61440) != 0)
             {
                 foreach (var tangent in Tangents)
                 {
@@ -102,81 +107,34 @@ namespace InfectedRose.Nif
         public override void Deserialize(BitReader reader)
         {
             GroupId = reader.Read<int>();
-
-            var verticesCount = reader.Read<ushort>();
-
+            NumVertices = reader.Read<ushort>();
             KeepFlags = reader.Read<byte>();
-
             CompressFlags = reader.Read<byte>();
-
-            var hasVertices = reader.Read<byte>() != 0;
-
-            if (hasVertices)
+            HasVertices = reader.ReadBool();
+            if (HasVertices)
             {
-                Vertices = new Vector3[verticesCount];
-
-                for (var i = 0; i < Vertices.Length; i++)
-                {
-                    Vertices[i] = reader.Read<Vector3>();
-                }
+                Vertices = reader.ReadArray<Vector3>(NumVertices);
             }
-
-            NumUvSets = reader.Read<ushort>();
-            
-            var hasNormals = reader.Read<byte>() != 0;
-
-            if (hasNormals)
+            DataFlags = reader.Read<ushort>();
+            HasNormals = reader.ReadBool();
+            if (HasNormals)
             {
-                Normals = new Vector3[verticesCount];
-
-                for (var i = 0; i < Normals.Length; i++)
-                {
-                    Normals[i] = reader.Read<Vector3>();
-                }
+                Normals = reader.ReadArray<Vector3>(NumVertices);
             }
-
-            if (hasNormals && (NumUvSets & 61440) != 0)
+            if (HasNormals && (DataFlags & 0b1111000000000000) != 0)
             {
-                Tangents = new Vector3[verticesCount];
-                for (var i = 0; i < verticesCount; i++)
-                {
-                    Tangents[i] = reader.Read<Vector3>();
-                }
-                
-                BitTangents = new Vector3[verticesCount];
-                for (var i = 0; i < verticesCount; i++)
-                {
-                    BitTangents[i] = reader.Read<Vector3>();
-                }
+                Tangents = reader.ReadArray<Vector3>(NumVertices);
+                BitTangents = reader.ReadArray<Vector3>(NumVertices);
             }
-
             Center = reader.Read<Vector3>();
-
             Radius = reader.Read<float>();
-            
-            var hasVertexColors = reader.Read<byte>() != 0;
-
-            if (hasVertexColors)
+            HasVertexColors = reader.ReadBool();
+            if (HasVertexColors)
             {
-                VertexColors = new Color4[verticesCount];
-
-                for (var i = 0; i < verticesCount; i++)
-                {
-                    VertexColors[i] = reader.Read<Color4>();
-                }
+                VertexColors = reader.ReadArray<Color4>(NumVertices);
             }
-            
-            Uv = new Vector2[NumUvSets & 63][];
 
-            for (var i = 0; i < Uv.Length; i++)
-            {
-                Uv[i] = new Vector2[verticesCount];
-
-                for (var j = 0; j < verticesCount; j++)
-                {
-                    Uv[i][j] = reader.Read<Vector2>();
-                }
-            }
+            Uv = reader.Read2DArray<Vector2>(DataFlags & 63, NumVertices);
 
             ConsistencyFlags = reader.Read<ushort>();
 
