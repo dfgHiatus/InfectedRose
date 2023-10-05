@@ -1,4 +1,3 @@
-using InfectedRose.Core;
 using RakDotNet.IO;
 
 namespace InfectedRose.Database.Fdb

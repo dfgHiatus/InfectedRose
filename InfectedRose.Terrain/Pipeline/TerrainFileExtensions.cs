@@ -8,6 +8,84 @@ namespace InfectedRose.Terrain.Pipeline
 {
     public static class TerrainFileExtensions
     {
+        public struct TerrainTriData
+        {
+            public Vector3 V1;
+            public Vector2 UV1;
+            public Vector3 V2;
+            public Vector2 UV2;
+            public Vector3 V3;
+            public Vector2 UV3;
+        }
+
+        public static TerrainTriData[] ExportTriData(this TerrainFile terrain)
+        {
+            var heightMap = terrain.GenerateRealMap();
+            var width = heightMap.GetLength(0);
+            float uvW = width - 1;
+            var height = heightMap.GetLength(1);
+            float uvH = height - 1;
+            bool TryGetValue(int x, int y, out Vector3 value)
+            {
+                try
+                {
+                    value = heightMap[x, y];
+                    return true;
+                }
+                catch
+                {
+                    value = Vector3.Zero;
+                    return false;
+                }
+            }
+            var triangles = new List<TerrainTriData>();
+
+            for (var y = 0; y < height; y += 1)
+            {
+                for (var x = 0; x < width; x += 1)
+                {
+                    {
+                        if (!TryGetValue(x, y, out var source))
+                            continue;
+                        if (!TryGetValue(x + 1, y, out var next))
+                            continue;
+                        if (!TryGetValue(x, y + 1, out var top))
+                            continue;
+                        var triangle = new TerrainTriData()
+                        {
+                            V1 = top,
+                            UV1 = new Vector2(x / uvW, (y+1) / uvH),
+                            V2 = next,
+                            UV2 = new Vector2((x+1) / uvW, y / uvH),
+                            V3 = source,
+                            UV3 = new Vector2(x / uvW, y / uvH),
+                        };
+                        triangles.Add(triangle);
+                    }
+                    {
+                        if (!TryGetValue(x, y + 1, out var source))
+                            continue;
+                        if (!TryGetValue(x + 1, y + 1, out var next))
+                            continue;
+                        if (!TryGetValue(x + 1, y, out var top))
+                            continue;
+                        var triangle = new TerrainTriData()
+                        {
+                            V1 = top,
+                            UV1 = new Vector2((x+1) / uvW, y / uvH),
+                            V2 = next,
+                            UV2 = new Vector2((x+1) / uvW, (y+1) / uvH),
+                            V3 = source,
+                            UV3 = new Vector2(x / uvW, (y+1) / uvH),
+                        };
+                        triangles.Add(triangle);
+                    }
+                }
+            }
+
+            return triangles.ToArray();
+        }
+
         public static string ExportAsObj(this TerrainFile @this, int offset, out int newOffset)
         {
             var triangles = @this.Triangulate();
@@ -46,13 +124,11 @@ namespace InfectedRose.Terrain.Pipeline
                 try
                 {
                     value = heightMap[x, y];
-
                     return true;
                 }
                 catch
                 {
                     value = Vector3.Zero;
-                    
                     return false;
                 }
             }
@@ -65,19 +141,11 @@ namespace InfectedRose.Terrain.Pipeline
                 {
                     {
                         if (!TryGetValue(x, y, out var source))
-                        {
                             continue;
-                        }
-
                         if (!TryGetValue(x + 1, y, out var next))
-                        {
                             continue;
-                        }
-
                         if (!TryGetValue(x, y + 1, out var top))
-                        {
                             continue;
-                        }
 
                         var triangle = new Triangle
                         {
@@ -88,23 +156,14 @@ namespace InfectedRose.Terrain.Pipeline
 
                         triangles.Add(triangle);
                     }
-
                     {
                         if (!TryGetValue(x, y + 1, out var source))
-                        {
                             continue;
-                        }
-                    
                         if (!TryGetValue(x + 1, y + 1, out var next))
-                        {
                             continue;
-                        }
-                        
                         if (!TryGetValue(x + 1, y, out var top))
-                        {
                             continue;
-                        }
-                    
+
                         var triangle = new Triangle
                         {
                             Position1 = source,
@@ -116,7 +175,6 @@ namespace InfectedRose.Terrain.Pipeline
                     }
                 }
             }
-
             return triangles.ToArray();
         }
 

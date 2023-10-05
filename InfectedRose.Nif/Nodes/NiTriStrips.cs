@@ -1,7 +1,6 @@
-namespace InfectedRose.Nif
+namespace InfectedRose.Nif;
+
+public class NiTriStrips : NiTriBasedGeom
 {
-    public class NiTriStrips : NiTriBasedGeom
-    {
         
-    }
 }

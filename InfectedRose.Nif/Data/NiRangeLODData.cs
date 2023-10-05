@@ -1,4 +1,5 @@
 using System.Numerics;
+using InfectedRose.Core;
 using RakDotNet.IO;
 
 namespace InfectedRose.Nif
@@ -29,12 +30,7 @@ namespace InfectedRose.Nif
             
             Center = reader.Read<Vector3>();
 
-            Ranges = new LODRange[reader.Read<uint>()];
-
-            for (var i = 0; i < Ranges.Length; i++)
-            {
-                Ranges[i] = reader.Read<LODRange>();
-            }
+            Ranges = reader.ReadArray<LODRange>((int)reader.Read<uint>());
         }
     }
 }

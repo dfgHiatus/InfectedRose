@@ -1,5 +1,5 @@
 using System;
-using System.Drawing;
+using SkiaSharp;
 using InfectedRose.Core;
 using RakDotNet.IO;
 
@@ -9,14 +9,14 @@ namespace InfectedRose.Terrain
     {
         public int Size { get; set; }
         
-        public Color[] Data { get; set; }
+        public SKColor[] Data { get; set; }
 
-        public Color GetValue(int x, int y)
+        public SKColor GetValue(int x, int y)
         {
             return Data[y * Size + x];
         }
 
-        public void SetColor(int x, int y, Color value)
+        public void SetColor(int x, int y, SKColor value)
         {
             Data[y * Size + x] = value;
         }
@@ -31,10 +31,10 @@ namespace InfectedRose.Terrain
 
                 var bytes = new[]
                 {
-                    color.R,
-                    color.G,
-                    color.B,
-                    color.A,
+                    color.Red,
+                    color.Green,
+                    color.Blue,
+                    color.Alpha,
                 };
 
                 var value = BitConverter.ToUInt32(bytes);
@@ -47,7 +47,7 @@ namespace InfectedRose.Terrain
         {
             Size = reader.Read<int>();
             
-            Data = new Color[Size * Size];
+            Data = new SKColor[Size * Size];
 
             for (var i = 0; i < Data.Length; i++)
             {
@@ -55,7 +55,7 @@ namespace InfectedRose.Terrain
 
                 var bytes = BitConverter.GetBytes(data);
 
-                var color = Color.FromArgb(bytes[3], bytes[0], bytes[1], bytes[2]);
+                var color = new SKColor(bytes[2], bytes[1], bytes[0], bytes[3]);
 
                 Data[i] = color;
             }
@@ -67,11 +67,11 @@ namespace InfectedRose.Terrain
             {
                 var map = new ColorMap {Size = 32};
                 
-                map.Data = new Color[map.Size * map.Size];
+                map.Data = new SKColor[map.Size * map.Size];
 
                 for (var i = 0; i < map.Data.Length; i++)
                 {
-                    map.Data[i] = Color.FromArgb(127, 127, 127); // Creates green
+                    map.Data[i] = new SKColor(127, 127, 127); // Creates green
                 }
 
                 return map;

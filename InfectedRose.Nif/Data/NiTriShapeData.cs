@@ -4,31 +4,32 @@ namespace InfectedRose.Nif
 {
     public class NiTriShapeData : NiTriBasedGeomData
     {
+        public uint TrianglePointCount;
         public Triangle[] Triangles { get; set; }
         
-        public MatchGroup[] Groups { get; set; }
+        public NiMatchGroup[] Groups { get; set; }
         
         public override void Deserialize(BitReader reader)
         {
             base.Deserialize(reader);
 
-            var points = reader.Read<uint>();
+            TrianglePointCount = reader.Read<uint>();
 
-            Triangles = new Triangle[TriangleCount];
-
-            for (var i = 0; i < TriangleCount; i++)
+            if (reader.Read<byte>() is not 0)
             {
-                Triangles[i] = reader.Read<Triangle>();
+                Triangles = new Triangle[TriangleCount];
+
+                for (var i = 0; i < TriangleCount; i++)
+                {
+                    Triangles[i] = reader.Read<Triangle>();
+                }
             }
-
-            Groups = new MatchGroup[reader.Read<ushort>()];
-
+            Groups = new NiMatchGroup[reader.Read<ushort>()];
             for (var i = 0; i < Groups.Length; i++)
             {
-                Groups[i] = reader.Read<MatchGroup>();
+                Groups[i] = reader.Read<NiMatchGroup>(File);
             }
         }
-
         public override void Serialize(BitWriter writer)
         {
             TriangleCount = (ushort) Triangles.Length;
@@ -41,12 +42,11 @@ namespace InfectedRose.Nif
             {
                 writer.Write(triangle);
             }
-
             writer.Write((ushort) Groups.Length);
-
+            
             foreach (var group in Groups)
             {
-                writer.Write(group);
+                //writer.Write(group);
             }
         }
     }

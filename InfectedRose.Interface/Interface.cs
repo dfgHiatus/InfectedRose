@@ -2,15 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Numerics;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using InfectedRose.Builder.Behaviors;
 using InfectedRose.Builder;
 using InfectedRose.Builder.Behaviors.External;
 using InfectedRose.Database;
 using InfectedRose.Database.Concepts;
-using InfectedRose.Database.Concepts.Generic;
 using InfectedRose.Database.Concepts.Tables;
 
 namespace InfectedRose.Interface

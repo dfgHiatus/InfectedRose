@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using RakDotNet.IO;
 
@@ -49,6 +51,54 @@ namespace InfectedRose.Core
             instance.Deserialize(@this);
 
             return instance;
+        }
+        
+        public static T[] ReadArrayD<T>(this BitReader @this, int size) where T : IDeserializable
+        {
+            var array = new T[size];
+            
+            for (var i = 0; i < size; i++) array[i] = @this.Read<T>();
+            
+            return array;
+        }
+
+        public static T[] ReadArray<T>(this BitReader @this, int size) where T : struct
+        {
+            var array = new T[size];
+            
+            for (var i = 0; i < size; i++) array[i] = @this.Read<T>();
+            
+            return array;
+        }
+        
+        public static bool ReadBool(this BitReader @this)
+        {
+            return @this.Read<byte>() > 0;
+        }
+
+        public static T[][] Read2DArray<T>(this BitReader @this, int size1, int size2) where T : struct
+        {
+            var array = new T[size1][];
+            
+            for (var i = 0; i < size1; i++) array[i] = @this.ReadArray<T>(size2);
+            
+            return array;
+        }
+        public static T[][] Read2DArray<T>(this BitReader @this, int size1, int[] size2) where T : struct
+        {
+            var array = new T[size1][];
+            
+            for (var i = 0; i < size1; i++) array[i] = @this.ReadArray<T>(size2[i]);
+            
+            return array;
+        }
+        public static T[][] Read2DArray<T>(this BitReader @this, int size1, ushort[] size2) where T : struct
+        {
+            var array = new T[size1][];
+            
+            for (var i = 0; i < size1; i++) array[i] = @this.ReadArray<T>(size2[i]);
+            
+            return array;
         }
     }
 }

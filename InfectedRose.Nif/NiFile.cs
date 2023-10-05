@@ -120,12 +120,13 @@ namespace InfectedRose.Nif
             for (var i = 0; i < blocks; i++)
             {
                 var blockInfo = Header.NodeInfo[i];
+                
+                var data = reader.ReadBuffer(blockInfo.Size);
+                
+                if (blockInfo.TypeIndex > Header.NodeTypes.Length) continue;
+                
                 var typeName = Header.NodeTypes[blockInfo.TypeIndex];
 
-                var data = reader.ReadBuffer(blockInfo.Size);
-
-                var index = i;
-                
                 using var stream = new MemoryStream(data);
 
                 using var blockReader = new BitReader(stream);
@@ -136,6 +137,8 @@ namespace InfectedRose.Nif
 
                 if (blockType == default)
                 {
+                    Console.WriteLine("Unknown type index: " + typeName);
+                    continue;
                     throw new NotImplementedException($"Block \"{typeName}\" is not implemented");
                 }
 
@@ -145,10 +148,11 @@ namespace InfectedRose.Nif
 
                 instance.Deserialize(blockReader);
 
-                Blocks[index] = instance;
+                Blocks[i] = instance;
 
                 if (stream.Position != stream.Length)
                 {
+                    continue;
                     throw new Exception(
                         $"Failed to read {typeName}, read {stream.Position}/{stream.Length} bytes"
                     );

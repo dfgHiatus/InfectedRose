@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Drawing;
 using System.Numerics;
+using SkiaSharp;
 
 namespace InfectedRose.Terrain.Editor
 {
@@ -8,7 +8,7 @@ namespace InfectedRose.Terrain.Editor
     {
         public TerrainEditor Editor { get; }
         
-        public Dictionary<Vector2, Color> Colors { get; }
+        public Dictionary<Vector2, SKColor> Colors { get; }
         
         private bool Second { get; }
 
@@ -16,12 +16,12 @@ namespace InfectedRose.Terrain.Editor
         {
             Editor = editor;
             
-            Colors = new Dictionary<Vector2, Color>();
+            Colors = new Dictionary<Vector2, SKColor>();
 
             Second = second;
         }
 
-        public void SetColor(Vector2 position, Color value)
+        public void SetColor(Vector2 position, SKColor value)
         {
             position /= 2;
 
