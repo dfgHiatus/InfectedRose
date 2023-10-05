@@ -128,16 +128,16 @@ public class LegoUniverseImporter : ResoniteMod
             switch (obj.Effects[i].Value)
             {
                 case NiDirectionalLight dLight:
-                    var dLightSlot = slot.AddSlot();
-                    AttachLightWithValues(dLightSlot, "Directional Light", LightType.Directional, dLight.Diffuse);
+                    var dLightSlot = "Directional Light";
+                    AttachLightWithValues(slot.AddSlot(dLightSlot), dLightSlot, LightType.Directional, dLight.Diffuse);
                     break;
                 case NiSpotLight sLight:
-                    var sLightSlot = slot.AddSlot();
-                    AttachLightWithValues(sLightSlot, "Spot Light", LightType.Spot, sLight.Diffuse);
+                    var sLightSlot = "Spot Light";
+                    AttachLightWithValues(slot.AddSlot(sLightSlot), sLightSlot, LightType.Spot, sLight.Diffuse);
                     break;
                 case NiPointLight pLight:
-                    var pLightSlot = slot.AddSlot();
-                    AttachLightWithValues(pLightSlot, "Point Light", LightType.Point, pLight.Diffuse);
+                    var pLightSlot = "Point Light";
+                    AttachLightWithValues(slot.AddSlot(pLightSlot), pLightSlot, LightType.Point, pLight.Diffuse);
                     break;
             }
         }
