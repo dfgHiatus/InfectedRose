@@ -73,7 +73,7 @@ namespace InfectedRose.Core
         
         public static bool ReadBool(this BitReader @this)
         {
-            return @this.Read<byte>() > 0;
+            return @this.Read<byte>() != 0;
         }
 
         public static T[][] Read2DArray<T>(this BitReader @this, int size1, int size2) where T : struct
