@@ -15,5 +15,13 @@ namespace InfectedRose.Nif
 
             return instance;
         }
+        public static T[] ReadArrayN<T>(this BitReader @this, int size, NiFile file) where T : NiObject
+        {
+            var array = new T[size];
+            
+            for (var i = 0; i < size; i++) array[i] = @this.Read<T>(file);
+            
+            return array;
+        }
     }
 }
