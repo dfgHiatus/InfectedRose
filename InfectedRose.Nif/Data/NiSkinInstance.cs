@@ -22,7 +22,7 @@ namespace InfectedRose.Nif
             Partition = reader.Read<NiRef<NiSkinPartition>>(File);
             SkeletonRoot = reader.Read<NiRef<NiNode>>(File);
             NumBones = reader.Read<uint>();
-            Bones = reader.ReadArrayD<NiRef<NiNode>>((int) NumBones);
+            Bones = reader.ReadArrayN<NiRef<NiNode>>((int) NumBones, File);
         }
     }
 }
