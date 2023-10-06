@@ -20,7 +20,7 @@ namespace InfectedRose.Nif
 
             Skin = reader.Read<NiRef<NiSkinInstance>>(File);
 
-            MaterialData = reader.Read<MaterialData>();
+            MaterialData = reader.Read<MaterialData>(File);
         }
 
         public override void Serialize(BitWriter writer)
