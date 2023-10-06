@@ -1,7 +1,8 @@
-﻿using Elements.Core;
-using InfectedRose.Nif;
-using System;
+﻿using System;
+using System.Linq;
 using System.Numerics;
+using Elements.Core;
+using InfectedRose.Nif;
 
 namespace InfectedRose.Resonite;
 
@@ -25,7 +26,7 @@ internal static class NiConversions
 
     internal static float3 ToFrooxEngine(this Vector3 vec)
     {
-        return new float3(vec); // TODO: axis conversion
+        return new float3(vec.X, vec.Y, -vec.Z); //TODO: axis conversion
     }
 
     internal static int[] Data(this Nif.Triangle tri)

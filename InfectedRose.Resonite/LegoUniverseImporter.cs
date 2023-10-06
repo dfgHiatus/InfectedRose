@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using static FrooxEngine.RadiantUI_Constants;
+using AlphaHandling = FrooxEngine.AlphaHandling;
 
 namespace InfectedRose.Resonite;
 
@@ -69,7 +70,7 @@ public class LegoUniverseImporter : ResoniteMod
                 file.ReadBlocks(reader); 
 
                 var header = slot.AddSlot("Header");
-                ParseNiFile(header, file);
+                ParseNiFile(file, header, path);
             }
             
             if (notLego.Count <= 0) return false;
@@ -78,7 +79,7 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
-    internal static void ParseNiFile(Slot header, NiFile file)
+    private static void ParseNiFile(NiFile file, Slot header, string path)
     {
         ParseNiHeader(header, file);
 
@@ -200,7 +201,7 @@ public class LegoUniverseImporter : ResoniteMod
         }
 
         mr.Mesh.Target = staticMesh;
-        mr.Materials.Add(DetermineMaterial(slot, shape));
+        mr.Materials.Add(DetermineMaterial(context, slot, shape));
         slot.AttachComponent<MeshCollider>();
     }
 
@@ -210,6 +211,7 @@ public class LegoUniverseImporter : ResoniteMod
         NiAlphaProperty niAlphaProperty = null;
         NiSpecularProperty niSpecularProperty = null;
         NiMaterialProperty niMaterialProperty = null;
+        NiTexturingProperty niTexturingProperty = null;
 
         foreach (var item in nts.Properties)
         {
@@ -226,6 +228,9 @@ public class LegoUniverseImporter : ResoniteMod
                     break;
                 case NiMaterialProperty nMP:
                     niMaterialProperty = nMP;
+                    break;
+                case NiTexturingProperty nTP:
+                    niTexturingProperty = nTP;
                     break;
             }
         }
@@ -311,25 +316,101 @@ public class LegoUniverseImporter : ResoniteMod
                 return slot.AttachComponent<UnlitMaterial>();
             }
 
-            foreach (var name in LegoMaterialDefinitions.Unlit_VertexColorAndAlpha)
-            {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
-                    continue;
-                var m = slot.AttachComponent<UnlitMaterial>();
-                m.UseVertexColors.Value = true;
-                m.BlendMode.Value = BlendMode.Alpha;
-                m.TintColor.Value = new colorX(1f, 1f, 1f, 0.2f);
-                return m;
-            }
+        var material = slot.AttachComponent<PBS_VertexColorMetallic>();
+        
+        material.AlphaHandling.Value = AlphaHandling.Opaque;
 
-            foreach (var name in LegoMaterialDefinitions.Unlit_Overlay)
+        if (niTexturingProperty is not null)
+        {
+            if (niTexturingProperty.HasBaseTexture)
+                material.AlbedoTexture.Target = ImportTexture(context, slot, niTexturingProperty.BaseTexture);
+            if (niTexturingProperty.HasGlowTexture)
+                material.EmissiveMap.Target = ImportTexture(context, slot, niTexturingProperty.GlowTexture);
+            if (niTexturingProperty.HasNormalTexture)
+                material.NormalMap.Target = ImportTexture(context, slot, niTexturingProperty.NormalTexture);
+        }
+        if (niAlphaProperty is not null)
+        {
+            //0b1000000000 //alpha test mask
+            //0b0000011110 //source blend mode
+            //0b0111100000 //dest blend mode
+            //0b0011101101 //problematicresult
+            //problem source blend = 6, SRC_ALPHA
+            //problem dest blend = 7, INV_SRC_ALPHA
+            //todo: there are more alpha blend modes in the flags but the material only supports opaque, clip, and blend
+            
+            //todo: i dont know how the modes work, ???
+            if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0) //alpha blend
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) continue;
-                return slot.AttachComponent<OverlayUnlitMaterial>();
+                material.AlphaHandling.Value = AlphaHandling.AlphaBlend;
+            }
+            else if (niAlphaProperty.Threshold > 0) material.AlphaHandling.Value = AlphaHandling.AlphaClip;
+
+            material.AlphaClip.Value = niAlphaProperty.Threshold / 255f;
+        }
+        if (niSpecularProperty is not null)
+        {
+            //specular's flags is an enum with two values, essentially a boolean, with the values
+            //"SPECULAR_DISABLED" and "SPECULAR_ENABLED"
+            if (niSpecularProperty.Flags > 0)
+            {
+                
             }
         }
 
-        return slot.AttachComponent<PBS_VertexColorMetallic>();
+        if (niMaterialProperty is not null)
+        {
+            material.AlbedoColor.Value = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+            material.EmissiveColor.Value = niMaterialProperty.EmissiveColor.ToFrooxEngine() * niMaterialProperty.EmitMultiplier;
+            material.Smoothness.Value = MathX.Clamp01(niMaterialProperty.Glossiness / 100f); //todo
+            
+        }
+        // TODO Add more material types
+        return material;
+    }
+
+    internal static IAssetProvider<ITexture2D> ImportTexture(NiFileContext context, Slot slot, TexDesc target)
+    {
+        var path = target.Source.Value.Path.Value;
+        var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);
+        if (!File.Exists(overallPath)) return null;
+        var url = Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy).Result;
+        var provider = slot.AttachComponent<StaticTexture2D>();
+        provider.URL.Value = url;
+        var filterModeFlag = (target.TexturingMapFlags & 0b0000111100000000) >> 8;
+        provider.FilterMode.Value = filterModeFlag switch
+        {
+            0 => TextureFilterMode.Point,
+            1 => TextureFilterMode.Bilinear,
+            2 => TextureFilterMode.Trilinear,
+            3 => TextureFilterMode.Point,
+            4 => TextureFilterMode.Point,
+            5 => TextureFilterMode.Bilinear,
+            6 => TextureFilterMode.Anisotropic,
+            _ => TextureFilterMode.Bilinear,
+        };
+        var filterClampFlag = (target.TexturingMapFlags & 0b0011000000000000) >> 12;
+        switch (filterClampFlag)
+        {
+            case 0:
+                provider.WrapModeU.Value = TextureWrapMode.Clamp;
+                provider.WrapModeV.Value = TextureWrapMode.Clamp;
+                break;
+            case 1:
+                provider.WrapModeU.Value = TextureWrapMode.Clamp;
+                provider.WrapModeV.Value = TextureWrapMode.Repeat;
+                break;
+            case 2:
+                provider.WrapModeU.Value = TextureWrapMode.Repeat;
+                provider.WrapModeV.Value = TextureWrapMode.Clamp;
+                break;
+            case 3:
+                provider.WrapModeU.Value = TextureWrapMode.Repeat;
+                provider.WrapModeV.Value = TextureWrapMode.Repeat;
+                break;
+        }
+        //target.
+        return provider;
     }
 
     internal static Light AttachLightWithValues(Slot slot, string slotName, LightType lightType, Color3 diffuse)
