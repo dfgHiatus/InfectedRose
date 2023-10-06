@@ -114,7 +114,7 @@ public class LegoUniverseImporter : ResoniteMod
         slot.LocalRotation = obj.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(obj.Scale, obj.Scale, obj.Scale);
 
-        for (int i = 0; i < obj.Children.Length; i++)
+        for (var i = 0; i < obj.Children.Length; i++)
         {
             switch (obj.Children[i].Value)
             {
@@ -129,7 +129,7 @@ public class LegoUniverseImporter : ResoniteMod
             }
         }
 
-        for (int i = 0; i < obj.Effects.Length; i++)
+        for (var i = 0; i < obj.Effects.Length; i++)
         {
             switch (obj.Effects[i].Value)
             {
@@ -161,6 +161,13 @@ public class LegoUniverseImporter : ResoniteMod
         var skinned = shape.Skin.Value != null;
         var mesh = (shape.Data.Value as NiTriShapeData).ToFrooxEngine(shape.Skin.Value);
 
+        var localDb = Engine.Current.LocalDB;
+        var tempFilePath = localDb.GetTempFilePath(".meshx");
+        mesh.SaveToFile(tempFilePath);
+        var url = localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move).Result;
+        var staticMesh = slot.AttachComponent<StaticMesh>();
+        staticMesh.URL.Value = url;
+
         if (skinned)
         {
             var renderer = slot.AttachComponent<SkinnedMeshRenderer>();
@@ -169,10 +176,12 @@ public class LegoUniverseImporter : ResoniteMod
             {
                 renderer.Bones.Add(context.ObjectSlots.TryGetValue(bone.Value, out var boneSlot) ? boneSlot : null);
             }
+            renderer.Mesh.Target = staticMesh;
         }
         else
         {
             var renderer = slot.AttachComponent<MeshRenderer>();
+            renderer.Mesh.Target = staticMesh;
         }
     }
 
