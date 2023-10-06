@@ -15,6 +15,7 @@ public class NiSourceTexture : NiTexture
 
     public override void Deserialize(BitReader reader)
     {
+        base.Deserialize(reader);
         UseExternal = reader.ReadBool();
         Path = reader.Read<NiStringRef>();
         PixelData = reader.Read<NiRef<NiPixelFormat>>();
