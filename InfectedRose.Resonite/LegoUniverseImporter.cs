@@ -25,7 +25,7 @@ public class LegoUniverseImporter : ResoniteMod
     internal static ModConfiguration config;
 
     [AutoRegisterConfigKey]
-    private static ModConfigurationKey<bool> enabled =
+    internal static ModConfigurationKey<bool> enabled =
         new("enabled", "Enabled", () => true);
 
     public override void OnEngineInit()
@@ -61,7 +61,7 @@ public class LegoUniverseImporter : ResoniteMod
 
             foreach (var path in hasLego)
             {
-                // TODO Make async?
+                // TODO Make async
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
                 using var reader = new BitReader(stream);
                 var file = new NiFile();
@@ -69,7 +69,7 @@ public class LegoUniverseImporter : ResoniteMod
                 file.ReadBlocks(reader); 
 
                 var header = slot.AddSlot("Header");
-                ParseNiFile(file, header);
+                ParseNiFile(header, file);
             }
             
             if (notLego.Count <= 0) return false;
@@ -78,13 +78,22 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
-    private static void ParseNiFile(NiFile file, Slot header)
+    internal static void ParseNiFile(Slot header, NiFile file)
+    {
+        ParseNiHeader(header, file);
+
+        var sBlock = header.AddSlot("Block");
+        if (file.Blocks[0] is NiNode root) // The root Block will contain exactly 1 element
+            ParseNiNode(sBlock, new NiFileContext(), root, null);
+    }
+
+    internal static void ParseNiHeader(Slot header, NiFile file)
     {
         // Could we use reflection to make this less repetitive?
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Version", (uint)file.Header.Version);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Endianness", (byte)file.Header.Endian);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Version String", file.Header.VersionString);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "User Version", file.Header.UserVersion);
+        AttachDynamicValueVariableWithValue(header, "Version", (uint)file.Header.Version);
+        AttachDynamicValueVariableWithValue(header, "Endianness", (byte)file.Header.Endian);
+        AttachDynamicValueVariableWithValue(header, "Version String", file.Header.VersionString);
+        AttachDynamicValueVariableWithValue(header, "User Version", file.Header.UserVersion);
 
         // Need to define this as NodeInfo has two members, not one
         var sNodeInfos = header.AddSlot("Node Infos");
@@ -106,17 +115,13 @@ public class LegoUniverseImporter : ResoniteMod
             dynVar2.VariableName.Value = DYN_VAR_SPACE_PREFIX + s;
         }
 
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Node Types", "Type", file.Header.NodeTypes);
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Strings", "String", file.Header.Strings);
-        AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
-        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
-
-        var sBlock = header.AddSlot("Block");
-        if (file.Blocks[0] is NiNode root) // Will contain 1 element
-            ParseNiNode(new NiFileContext(), sBlock, root, null);
+        AttachDynamicValueVariableCollectionWithValues(header, "Node Types", "Type", file.Header.NodeTypes);
+        AttachDynamicValueVariableCollectionWithValues(header, "Strings", "String", file.Header.Strings);
+        AttachDynamicValueVariableWithValue(header, "Max String Length", file.Header.MaxStringLength);
+        AttachDynamicValueVariableCollectionWithValues(header, "Groups", "Group", file.Header.Groups);
     }
 
-    private static void ParseNiNode(NiFileContext context, Slot slot, NiNode obj, NiNode parent)
+    internal static void ParseNiNode(Slot slot, NiFileContext context, NiNode obj, NiNode parent)
     {
         context.ObjectSlots.Add(obj, slot);
         
@@ -130,11 +135,11 @@ public class LegoUniverseImporter : ResoniteMod
             {
                 case NiNode node:
                     var sNode = slot.AddSlot("Node");
-                    ParseNiNode(context, sNode, node, obj);
+                    ParseNiNode(sNode, context, node, obj);
                     break;
                 case NiTriShape triShape:
-                    var triShapeNode = slot.AddSlot("Mesh");
-                    ParseTriShape(context, triShapeNode, triShape);
+                    var sMesh = slot.AddSlot("Mesh");
+                    ParseTriShape(sMesh, context, triShape);
                     break;
             }
         }
@@ -160,7 +165,7 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
-    internal static void ParseTriShape(NiFileContext context, Slot slot, NiTriShape shape)
+    internal static void ParseTriShape(Slot slot, NiFileContext context, NiTriShape shape)
     {
         context.ObjectSlots.Add(shape, slot);
         
@@ -199,7 +204,7 @@ public class LegoUniverseImporter : ResoniteMod
         slot.AttachComponent<MeshCollider>();
     }
 
-    internal static PBS_VertexColorMetallic DetermineMaterial(Slot slot, NiTriShape nts)
+    internal static IAssetProvider<Material> DetermineMaterial(Slot slot, NiTriShape nts)
     {
         NiVertexColorProperty niVertexColorProperty = null;
         NiAlphaProperty niAlphaProperty = null;
@@ -225,50 +230,137 @@ public class LegoUniverseImporter : ResoniteMod
             }
         }
 
-        //if (niMaterialProperty != null)
-        //{
-        //    niMaterialProperty.Name.Contains("");
-        //}
-        
+        // TODO Incorporate NiVertexColorProperty, NiAlphaProperty, NiSpecularProperty
+        // Can we cut this down somehow?
+        if (niMaterialProperty != null)
+        {
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<PBS_VertexColorMetallic>();
+            }
 
-        // TODO Add more material types
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Emissive)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                var m = slot.AttachComponent<PBS_VertexColorMetallic>();
+                m.EmissiveColor.Value = colorX.White;
+                return m;
+            }
+
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Transparent)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                var m = slot.AttachComponent<PBS_VertexColorMetallic>();
+                m.AlphaHandling.Value = FrooxEngine.AlphaHandling.AlphaBlend;
+                m.AlbedoColor.Value = new colorX(1f, 1f, 1f, 0.33f);
+                return m;
+            }
+
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Metallic)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                var m = slot.AttachComponent<PBS_VertexColorMetallic>();
+                m.Metallic.Value = 1f;
+                return m;
+            }
+
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorSpecular)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<PBS_VertexColorSpecular>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.PBS_VertexColorSpecular_Specular)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<PBS_VertexColorSpecular>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.PBS_RimMetallic)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<PBS_RimMetallic>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.GrayscaleMaterial)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<GrayscaleMaterial>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.GrayscaleMaterial)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<UnlitDistanceLerpMaterial>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.Unlit)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                return slot.AttachComponent<UnlitMaterial>();
+            }
+
+            foreach (var name in LegoMaterialDefinitions.Unlit_VertexColorAndAlpha)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                    continue;
+                var m = slot.AttachComponent<UnlitMaterial>();
+                m.UseVertexColors.Value = true;
+                m.BlendMode.Value = BlendMode.Alpha;
+                m.TintColor.Value = new colorX(1f, 1f, 1f, 0.2f);
+                return m;
+            }
+
+            foreach (var name in LegoMaterialDefinitions.Unlit_Overlay)
+            {
+                if (!name.Contains(niMaterialProperty.Name.Value)) continue;
+                return slot.AttachComponent<OverlayUnlitMaterial>();
+            }
+        }
+
         return slot.AttachComponent<PBS_VertexColorMetallic>();
     }
 
-    internal static Light AttachLightWithValues(Slot slot, string s, LightType lightType, Color3 diffuse)
+    internal static Light AttachLightWithValues(Slot slot, string slotName, LightType lightType, Color3 diffuse)
     {
-        var lightSlot = slot.AddSlot(s);
+        var lightSlot = slot.AddSlot(slotName);
         var light = lightSlot.AttachComponent<Light>();
         light.LightType.Value = lightType;
         light.Color.Value = diffuse.ToFrooxEngine();
-        light.ShadowType.Value = ShadowType.None; // TODO Test me!
+        light.ShadowType.Value = ShadowType.None; // TODO Test me! Will this look good?
         return light;
     }
 
-    internal static Slot AttachDynamicValueVariableWithSpaceAndValue<T>(Slot header, string s, T value)
+    internal static Slot AttachDynamicValueVariableWithValue<T>(Slot header, string slotName, T value)
     {
-        var slot = header.AddSlot(s);
+        var slot = header.AddSlot(slotName);
         var dVar = slot.AttachComponent<DynamicValueVariable<T>>();
         dVar.VariableName.Value = DYN_VAR_SPACE_PREFIX + value.ToString();
         dVar.Value.Value = value;
         return slot;
     }
 
-    internal static Slot AttachDynamicValueVariableCollectionWithSpaceAndValues<T>(Slot header, string s, string sc, T[] collection)
+    internal static Slot AttachDynamicValueVariableCollectionWithValues<T>(Slot header, string slotName, string slotChildName, T[] collection)
     {
-        var slot = header.AddSlot(s);
+        var slot = header.AddSlot(slotName);
         foreach (var item in collection)
         {
-            var scStrings = header.AddSlot(sc);
+            var scStrings = header.AddSlot(slotChildName);
             var dVar = slot.AttachComponent<DynamicValueVariable<T>>();
             dVar.VariableName.Value = DYN_VAR_SPACE_PREFIX + item.ToString();
             dVar.Value.Value = item;
         }
         return slot;
     }
-}
-
-internal class NiFileContext
-{
-    public Dictionary<NiObject, Slot> ObjectSlots = new();
 }
