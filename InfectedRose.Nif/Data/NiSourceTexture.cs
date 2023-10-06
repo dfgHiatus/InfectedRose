@@ -17,8 +17,8 @@ public class NiSourceTexture : NiTexture
     {
         base.Deserialize(reader);
         UseExternal = reader.ReadBool();
-        Path = reader.Read<NiStringRef>();
-        PixelData = reader.Read<NiRef<NiPixelFormat>>();
+        Path = reader.Read<NiStringRef>(File);
+        PixelData = reader.Read<NiRef<NiPixelFormat>>(File);
         FormatPrefs = reader.Read<FormatPrefs>();
         IsStatic = reader.ReadBool();
         DirectRender = reader.ReadBool();
