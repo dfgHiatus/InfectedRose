@@ -10,6 +10,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.Remoting.Contexts;
+using System.Xml.Xsl;
 using static FrooxEngine.RadiantUI_Constants;
 using AlphaHandling = FrooxEngine.AlphaHandling;
 
@@ -70,7 +72,7 @@ public class LegoUniverseImporter : ResoniteMod
                 file.ReadBlocks(reader); 
 
                 var header = slot.AddSlot("Header");
-                ParseNiFile(file, header, path);
+                ParseNiFile(header, file, path);
             }
             
             if (notLego.Count <= 0) return false;
@@ -79,7 +81,7 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
-    private static void ParseNiFile(NiFile file, Slot header, string path)
+    internal static void ParseNiFile(Slot header, NiFile file, string path)
     {
         ParseNiHeader(header, file);
 
@@ -201,17 +203,23 @@ public class LegoUniverseImporter : ResoniteMod
         }
 
         mr.Mesh.Target = staticMesh;
-        mr.Materials.Add(DetermineMaterial(context, slot, shape));
+        mr.Materials.Add(DetermineMaterial(slot, shape, context));
         slot.AttachComponent<MeshCollider>();
     }
 
-    internal static IAssetProvider<Material> DetermineMaterial(Slot slot, NiTriShape nts)
+    internal static IAssetProvider<Material> DetermineMaterial(Slot slot, NiTriShape nts, NiFileContext context)
     {
         NiVertexColorProperty niVertexColorProperty = null;
         NiAlphaProperty niAlphaProperty = null;
         NiSpecularProperty niSpecularProperty = null;
         NiMaterialProperty niMaterialProperty = null;
         NiTexturingProperty niTexturingProperty = null;
+
+        IPBS_Metallic pbsMetallic = null;
+        IPBS_Specular pbsSpecular = null;
+        PBS_RimMetallic pbsRimMaterial = null;
+        UnlitMaterial unlitMaterial = null;
+        UnlitDistanceLerpMaterial unlitDistanceLerpMaterial = null;
 
         foreach (var item in nts.Properties)
         {
@@ -241,96 +249,94 @@ public class LegoUniverseImporter : ResoniteMod
         {
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<PBS_VertexColorMetallic>();
+                pbsMetallic = slot.AttachComponent<PBS_VertexColorMetallic>();
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Emissive)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
                 m.EmissiveColor.Value = colorX.White;
-                return m;
+                pbsMetallic = m;
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Transparent)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
-                m.AlphaHandling.Value = FrooxEngine.AlphaHandling.AlphaBlend;
+                m.AlphaHandling.Value = AlphaHandling.AlphaBlend;
                 m.AlbedoColor.Value = new colorX(1f, 1f, 1f, 0.33f);
-                return m;
+                pbsMetallic = m;
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorMetallic_Metallic)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
                 m.Metallic.Value = 1f;
-                return m;
+                pbsMetallic = m;
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorSpecular)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<PBS_VertexColorSpecular>();
+                pbsSpecular = slot.AttachComponent<PBS_VertexColorSpecular>();
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_VertexColorSpecular_Specular)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<PBS_VertexColorSpecular>();
+                pbsSpecular = slot.AttachComponent<PBS_VertexColorSpecular>();
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.PBS_RimMetallic)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<PBS_RimMetallic>();
+                pbsRimMaterial = slot.AttachComponent<PBS_RimMetallic>();
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.GrayscaleMaterial)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<GrayscaleMaterial>();
+                var m = slot.AttachComponent<GrayscaleMaterial>();
+                m.RatioBlue.Value = 1f;
+                m.RatioGreen.Value = 1f;
+                m.RatioRed.Value = 1f;
+                return m; // No further processing needed
             }
 
-            foreach (var name in LegoMaterialDefinitions.GrayscaleMaterial)
+            foreach (var name in LegoMaterialDefinitions.UnlitDistanceLerp)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<UnlitDistanceLerpMaterial>();
+                unlitDistanceLerpMaterial = slot.AttachComponent<UnlitDistanceLerpMaterial>();
+                goto FoundMaterial;
             }
 
             foreach (var name in LegoMaterialDefinitions.Unlit)
             {
-                if (!name.Contains(niMaterialProperty.Name.Value)) 
+                if (!name.Contains(niMaterialProperty.Name.Value))
                     continue;
-                return slot.AttachComponent<UnlitMaterial>();
+                unlitMaterial = slot.AttachComponent<UnlitMaterial>();
+                goto FoundMaterial;
             }
 
-        var material = slot.AttachComponent<PBS_VertexColorMetallic>();
-        
-        material.AlphaHandling.Value = AlphaHandling.Opaque;
-
-        if (niTexturingProperty is not null)
-        {
-            if (niTexturingProperty.HasBaseTexture)
-                material.AlbedoTexture.Target = ImportTexture(context, slot, niTexturingProperty.BaseTexture);
-            if (niTexturingProperty.HasGlowTexture)
-                material.EmissiveMap.Target = ImportTexture(context, slot, niTexturingProperty.GlowTexture);
-            if (niTexturingProperty.HasNormalTexture)
-                material.NormalMap.Target = ImportTexture(context, slot, niTexturingProperty.NormalTexture);
-        }
-        if (niAlphaProperty is not null)
-        {
             //0b1000000000 //alpha test mask
             //0b0000011110 //source blend mode
             //0b0111100000 //dest blend mode
@@ -338,38 +344,185 @@ public class LegoUniverseImporter : ResoniteMod
             //problem source blend = 6, SRC_ALPHA
             //problem dest blend = 7, INV_SRC_ALPHA
             //todo: there are more alpha blend modes in the flags but the material only supports opaque, clip, and blend
-            
             //todo: i dont know how the modes work, ???
-            if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0) //alpha blend
-            {
-                material.AlphaHandling.Value = AlphaHandling.AlphaBlend;
-            }
-            else if (niAlphaProperty.Threshold > 0) material.AlphaHandling.Value = AlphaHandling.AlphaClip;
 
-            material.AlphaClip.Value = niAlphaProperty.Threshold / 255f;
-        }
-        if (niSpecularProperty is not null)
-        {
             //specular's flags is an enum with two values, essentially a boolean, with the values
             //"SPECULAR_DISABLED" and "SPECULAR_ENABLED"
-            if (niSpecularProperty.Flags > 0)
+
+            FoundMaterial:
+
+            if (pbsMetallic != null)
             {
-                
+                pbsMetallic.BlendMode = BlendMode.Opaque;
+                if (niTexturingProperty is not null)
+                {
+                    if (niTexturingProperty.HasBaseTexture)
+                        pbsMetallic.AlbedoTexture = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                    if (niTexturingProperty.HasGlowTexture)
+                        pbsMetallic.EmissiveMap = ImportTexture(slot, context, niTexturingProperty.GlowTexture);
+                    if (niTexturingProperty.HasNormalTexture)
+                        pbsMetallic.NormalMap = ImportTexture(slot, context, niTexturingProperty.NormalTexture);
+                }
+                if (niAlphaProperty is not null)
+                {
+                    if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0) //alpha blend
+                    {
+                        pbsMetallic.BlendMode = BlendMode.Alpha;
+                    }
+                    else if (niAlphaProperty.Threshold > 0) pbsMetallic.BlendMode = BlendMode.Transparent;
+
+                    pbsMetallic.AlphaCutoff = niAlphaProperty.Threshold / 255f;
+                }
+
+                if (niMaterialProperty is not null)
+                {
+                    pbsMetallic.AlbedoColor = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+                    pbsMetallic.EmissiveColor = niMaterialProperty.EmissiveColor.ToFrooxEngine() * niMaterialProperty.EmitMultiplier;
+                    pbsMetallic.Smoothness = MathX.Clamp01(niMaterialProperty.Glossiness / 100f); //todo
+                }
+
+                return pbsMetallic;
+            }
+
+            if (pbsSpecular != null)
+            {
+                pbsSpecular.BlendMode = BlendMode.Opaque;
+                if (niTexturingProperty is not null)
+                {
+                    if (niTexturingProperty.HasBaseTexture)
+                        pbsSpecular.AlbedoTexture = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                    if (niTexturingProperty.HasGlowTexture)
+                        pbsSpecular.EmissiveMap = ImportTexture(slot, context, niTexturingProperty.GlowTexture);
+                    if (niTexturingProperty.HasNormalTexture)
+                        pbsSpecular.NormalMap = ImportTexture(slot, context, niTexturingProperty.NormalTexture);
+                }
+                if (niAlphaProperty is not null)
+                {
+                    if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0)
+                    {
+                        pbsSpecular.BlendMode = BlendMode.Opaque;
+                    }
+                    else if (niAlphaProperty.Threshold > 0) pbsSpecular.BlendMode = BlendMode.Alpha;
+
+                    pbsSpecular.AlphaCutoff = niAlphaProperty.Threshold / 255f;
+                }
+                if (niSpecularProperty is not null)
+                {
+                    if (niSpecularProperty.Flags > 0)
+                    {
+                        // TODO Set Specular color
+                        // pbsSpecular.SpecularColor = ...
+                    }
+                }
+
+                if (niMaterialProperty is not null)
+                {
+                    pbsSpecular.AlbedoColor = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+                    pbsSpecular.EmissiveColor = niMaterialProperty.EmissiveColor.ToFrooxEngine() * niMaterialProperty.EmitMultiplier;
+                    pbsSpecular.Smoothness = MathX.Clamp01(niMaterialProperty.Glossiness / 100f); //todo
+                }
+
+                return pbsSpecular;
+            }
+
+            if (pbsRimMaterial != null)
+            {
+                pbsRimMaterial.Transparent.Value = false;
+                if (niTexturingProperty is not null)
+                {
+                    if (niTexturingProperty.HasBaseTexture)
+                        pbsRimMaterial.AlbedoTexture.Target = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                    if (niTexturingProperty.HasGlowTexture)
+                        pbsRimMaterial.EmissiveMap.Target = ImportTexture(slot, context, niTexturingProperty.GlowTexture);
+                    if (niTexturingProperty.HasNormalTexture)
+                        pbsRimMaterial.NormalMap.Target = ImportTexture(slot, context, niTexturingProperty.NormalTexture);
+                }
+                if (niAlphaProperty is not null)
+                {
+                    if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0 || niAlphaProperty.Threshold > 0)
+                    {
+                        pbsRimMaterial.Transparent.Value = true;
+                    }
+
+                    pbsRimMaterial.AlbedoColor.Value = new colorX(
+                        pbsRimMaterial.AlbedoColor.Value.rbg, niAlphaProperty.Threshold / 255f);
+                }
+
+                if (niMaterialProperty is not null)
+                {
+                    pbsRimMaterial.AlbedoColor.Value = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+                    pbsRimMaterial.EmissiveColor.Value = niMaterialProperty.EmissiveColor.ToFrooxEngine() * niMaterialProperty.EmitMultiplier;
+                    pbsRimMaterial.Metallic.Value = MathX.Clamp01(niMaterialProperty.Glossiness / 100f); //todo
+                }
+            }
+
+            if (unlitMaterial != null)
+            {
+                unlitMaterial.BlendMode.Value = BlendMode.Opaque;
+                if (niTexturingProperty is not null)
+                {
+                    if (niTexturingProperty.HasBaseTexture)
+                        unlitMaterial.Texture.Target = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                    if (niTexturingProperty.HasNormalTexture)
+                        unlitMaterial.NormalMap = ImportTexture(slot, context, niTexturingProperty.NormalTexture);
+                }
+                if (niAlphaProperty is not null)
+                {
+                    if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0) //alpha blend
+                    {
+                        unlitMaterial.BlendMode.Value = BlendMode.Transparent;
+                    }
+                    else if (niAlphaProperty.Threshold > 0) unlitMaterial.BlendMode.Value = BlendMode.Alpha;
+
+                    unlitMaterial.TintColor.Value = new colorX(
+                        unlitMaterial.TintColor.Value.rbg, niAlphaProperty.Threshold / 255f);
+                }
+
+                if (niMaterialProperty is not null)
+                {
+                    unlitMaterial.TintColor.Value = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+                }
+            }
+
+            if (unlitDistanceLerpMaterial != null)
+            {
+                unlitDistanceLerpMaterial.BlendMode.Value = BlendMode.Opaque;
+                if (niTexturingProperty is not null)
+                {
+                    var texture = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                    if (niTexturingProperty.HasBaseTexture)
+                    {
+                        unlitDistanceLerpMaterial.NearTexture.Target = texture;
+                        unlitDistanceLerpMaterial.FarTexture.Target = texture;
+                    }
+                }
+                if (niAlphaProperty is not null)
+                {
+                    if ((niAlphaProperty.Flags & 0x0001) > 0 && niAlphaProperty.Threshold > 0) //alpha blend
+                    {
+                        unlitDistanceLerpMaterial.BlendMode.Value = BlendMode.Transparent;
+                    }
+                    else if (niAlphaProperty.Threshold > 0) unlitDistanceLerpMaterial.BlendMode.Value = BlendMode.Alpha;
+
+                    var color = new colorX(
+                        unlitDistanceLerpMaterial.FarColor.Value.rbg, niAlphaProperty.Threshold / 255f);
+                    unlitDistanceLerpMaterial.FarColor.Value = color;
+                    unlitDistanceLerpMaterial.NearColor.Value = color;
+                }
+
+                if (niMaterialProperty is not null)
+                {
+                    var color = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
+                    unlitDistanceLerpMaterial.FarColor.Value = color;
+                    unlitDistanceLerpMaterial.NearColor.Value = color;
+                }
             }
         }
 
-        if (niMaterialProperty is not null)
-        {
-            material.AlbedoColor.Value = niMaterialProperty.DiffuseColor.ToFrooxEngine().SetA(niMaterialProperty.Alpha);
-            material.EmissiveColor.Value = niMaterialProperty.EmissiveColor.ToFrooxEngine() * niMaterialProperty.EmitMultiplier;
-            material.Smoothness.Value = MathX.Clamp01(niMaterialProperty.Glossiness / 100f); //todo
-            
-        }
-        // TODO Add more material types
-        return material;
+        return slot.AttachComponent<PBS_VertexColorMetallic>();
     }
 
-    internal static IAssetProvider<ITexture2D> ImportTexture(NiFileContext context, Slot slot, TexDesc target)
+    internal static IAssetProvider<ITexture2D> ImportTexture(Slot slot, NiFileContext context, TexDesc target)
     {
         var path = target.Source.Value.Path.Value;
         var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);

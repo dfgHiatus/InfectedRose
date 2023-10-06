@@ -6,5 +6,6 @@ namespace InfectedRose.Resonite;
 
 internal class NiFileContext
 {
+    public string Path;
     public Dictionary<NiObject, Slot> ObjectSlots = new();
 }
