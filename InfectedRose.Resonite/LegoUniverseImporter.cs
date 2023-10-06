@@ -5,6 +5,7 @@ using HarmonyLib;
 using InfectedRose.Nif;
 using RakDotNet.IO;
 using ResoniteModLoader;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -56,7 +57,7 @@ public class LegoUniverseImporter : ResoniteMod
 
             var dSpace = slot.AttachComponent<DynamicVariableSpace>();
             dSpace.OnlyDirectBinding.Value = true;
-            dSpace.SpaceName.Value = DYN_VAR_SPACE_PREFIX.Remove('/');
+            dSpace.SpaceName.Value = DYN_VAR_SPACE_PREFIX.TrimEnd('/');
 
             foreach (var path in hasLego)
             {
@@ -80,26 +81,35 @@ public class LegoUniverseImporter : ResoniteMod
     private static void ParseNiFile(NiFile file, Slot header)
     {
         // Could we use reflection to make this less repetitive?
-        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Version", (uint)file.Header.Version);
-        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Endianness", (byte)file.Header.Endian);
-        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Version String", file.Header.VersionString);
-        header = AttachDynamicValueVariableWithSpaceAndValue(header, "User Version", file.Header.UserVersion);
+        AttachDynamicValueVariableWithSpaceAndValue(header, "Version", (uint)file.Header.Version);
+        AttachDynamicValueVariableWithSpaceAndValue(header, "Endianness", (byte)file.Header.Endian);
+        AttachDynamicValueVariableWithSpaceAndValue(header, "Version String", file.Header.VersionString);
+        AttachDynamicValueVariableWithSpaceAndValue(header, "User Version", file.Header.UserVersion);
 
         // Need to define this as NodeInfo has two members, not one
-        var sNodeInfo = header.AddSlot("Node Info");
+        var sNodeInfos = header.AddSlot("Node Infos");
+        string s;
         foreach (var item in file.Header.NodeInfo)
         {
-            var scNodeInfo = header.AddSlot("Type Index");
-            sNodeInfo.AttachComponent<DynamicValueVariable<ushort>>().Value.Value = item.TypeIndex;
+            var sNodeInfo = sNodeInfos.AddSlot("Node Info");
 
-            var scSize = header.AddSlot("Size");
-            sNodeInfo.AttachComponent<DynamicValueVariable<uint>>().Value.Value = item.Size;
+            s = "Type Index";
+            var scNodeInfo = sNodeInfo.AddSlot(s);
+            var dynVar = scNodeInfo.AttachComponent<DynamicValueVariable<ushort>>();
+            dynVar.Value.Value = item.TypeIndex;
+            dynVar.VariableName.Value = DYN_VAR_SPACE_PREFIX + s;
+
+            s = "Size";
+            var scSize = sNodeInfo.AddSlot(s);
+            var dynVar2 = scSize.AttachComponent<DynamicValueVariable<uint>>();
+            dynVar2.Value.Value = item.TypeIndex;
+            dynVar2.VariableName.Value = DYN_VAR_SPACE_PREFIX + s;
         }
 
-        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Node Types", "Type", file.Header.NodeTypes);
-        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Strings", "String", file.Header.Strings);
-        header = AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
-        header = AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
+        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Node Types", "Type", file.Header.NodeTypes);
+        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Strings", "String", file.Header.Strings);
+        AttachDynamicValueVariableWithSpaceAndValue(header, "Max String Length", file.Header.MaxStringLength);
+        AttachDynamicValueVariableCollectionWithSpaceAndValues(header, "Groups", "Group", file.Header.Groups);
 
         var sBlock = header.AddSlot("Block");
         if (file.Blocks[0] is NiNode root) // Will contain 1 element
@@ -168,21 +178,61 @@ public class LegoUniverseImporter : ResoniteMod
         var staticMesh = slot.AttachComponent<StaticMesh>();
         staticMesh.URL.Value = url;
 
+        MeshRenderer mr;
         if (skinned)
         {
-            var renderer = slot.AttachComponent<SkinnedMeshRenderer>();
+            var smr = slot.AttachComponent<SkinnedMeshRenderer>();
             var bones = shape.Skin.Value.Bones;
             foreach (var bone in bones)
             {
-                renderer.Bones.Add(context.ObjectSlots.TryGetValue(bone.Value, out var boneSlot) ? boneSlot : null);
+                smr.Bones.Add(context.ObjectSlots.TryGetValue(bone.Value, out var boneSlot) ? boneSlot : null);
             }
-            renderer.Mesh.Target = staticMesh;
+            mr = smr;
         }
         else
         {
-            var renderer = slot.AttachComponent<MeshRenderer>();
-            renderer.Mesh.Target = staticMesh;
+            mr = slot.AttachComponent<MeshRenderer>();  
         }
+
+        mr.Mesh.Target = staticMesh;
+        mr.Materials.Add(DetermineMaterial(slot, shape));
+        slot.AttachComponent<MeshCollider>();
+    }
+
+    internal static PBS_VertexColorMetallic DetermineMaterial(Slot slot, NiTriShape nts)
+    {
+        NiVertexColorProperty niVertexColorProperty = null;
+        NiAlphaProperty niAlphaProperty = null;
+        NiSpecularProperty niSpecularProperty = null;
+        NiMaterialProperty niMaterialProperty = null;
+
+        foreach (var item in nts.Properties)
+        {
+            switch (item.Value)
+            {
+                case NiVertexColorProperty nVCP:
+                    niVertexColorProperty = nVCP;
+                    break;
+                case NiAlphaProperty nAP:
+                    niAlphaProperty = nAP;
+                    break;
+                case NiSpecularProperty nSP:
+                    niSpecularProperty = nSP;
+                    break;
+                case NiMaterialProperty nMP:
+                    niMaterialProperty = nMP;
+                    break;
+            }
+        }
+
+        //if (niMaterialProperty != null)
+        //{
+        //    niMaterialProperty.Name.Contains("");
+        //}
+        
+
+        // TODO Add more material types
+        return slot.AttachComponent<PBS_VertexColorMetallic>();
     }
 
     internal static Light AttachLightWithValues(Slot slot, string s, LightType lightType, Color3 diffuse)
