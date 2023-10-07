@@ -13,6 +13,6 @@ public class NiSingleInterpController : NiInterpController
     public override void Deserialize(BitReader reader)
     {
         base.Deserialize(reader);
-        
+        Interpolator = reader.Read<NiRef<NiInterpolator>>(File);
     }
 }
