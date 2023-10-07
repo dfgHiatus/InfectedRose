@@ -1,5 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfectedRose.Terrain", "InfectedRose.Terrain\InfectedRose.Terrain.csproj", "{C5948668-31F0-457F-A1D7-A32DB85A6A5D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfectedRose.Core", "InfectedRose.Core\InfectedRose.Core.csproj", "{2D0A3B97-ACED-487E-AF18-F6E81627D0F6}"
@@ -27,6 +28,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfectedRose.Interface", "InfectedRose.Interface\InfectedRose.Interface.csproj", "{1CD2D01F-218B-47A2-AE66-A673F48F84AC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfectedRose.Builder.Behaviors", "InfectedRose.Builder.Behaviors\InfectedRose.Builder.Behaviors.csproj", "{8120B3E6-7A02-406A-95D2-C417CC8AAE68}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfectedRose.Kfm", "InfectedRose.Kfm\InfectedRose.Kfm.csproj", "{887CD9CC-31D0-40F1-A15B-23AE0BD219D8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -102,5 +105,9 @@ Global
 		{8120B3E6-7A02-406A-95D2-C417CC8AAE68}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8120B3E6-7A02-406A-95D2-C417CC8AAE68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8120B3E6-7A02-406A-95D2-C417CC8AAE68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{887CD9CC-31D0-40F1-A15B-23AE0BD219D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{887CD9CC-31D0-40F1-A15B-23AE0BD219D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{887CD9CC-31D0-40F1-A15B-23AE0BD219D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{887CD9CC-31D0-40F1-A15B-23AE0BD219D8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
