@@ -12,6 +12,11 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.Remoting.Contexts;
 using System.Xml.Xsl;
+using InfectedRose.Database;
+using InfectedRose.Database.Concepts.Tables;
+using InfectedRose.Database.Fdb;
+using InfectedRose.Luz;
+using InfectedRose.Lvl;
 using static FrooxEngine.RadiantUI_Constants;
 using AlphaHandling = FrooxEngine.AlphaHandling;
 
@@ -23,6 +28,8 @@ public class LegoUniverseImporter : ResoniteMod
     public override string Author => "dfgHiatus and Fro Zen";
     public override string Version => "1.0.0";
 
+    internal const string LUZ_EXTENSION = ".luz";
+    internal const string LVL_EXTENSION = ".lvl";
     internal const string NIF_EXTENSION = ".nif";
     internal const string DYN_VAR_SPACE_PREFIX = "LegoUniverse/";
     internal static ModConfiguration config;
@@ -30,6 +37,10 @@ public class LegoUniverseImporter : ResoniteMod
     [AutoRegisterConfigKey]
     internal static ModConfigurationKey<bool> enabled =
         new("enabled", "Enabled", () => true);
+    
+    [AutoRegisterConfigKey]
+    internal static ModConfigurationKey<string> cdclientDirectory =
+        new("cdClientDirectory", "Path to cdclient.fdb", () => "");
 
     public override void OnEngineInit()
     {
@@ -49,7 +60,7 @@ public class LegoUniverseImporter : ResoniteMod
             List<string> notLego = new();
             foreach (var file in files)
             {
-                if (Path.GetExtension(file).ToLower() == NIF_EXTENSION)
+                if (Path.GetExtension(file).ToLower() is NIF_EXTENSION or LUZ_EXTENSION or LVL_EXTENSION)
                     hasLego.Add(file);
                 else
                     notLego.Add(file);
@@ -64,15 +75,15 @@ public class LegoUniverseImporter : ResoniteMod
 
             foreach (var path in hasLego)
             {
-                // TODO Make async
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-                using var reader = new BitReader(stream);
-                var file = new NiFile();
-                file.Deserialize(reader);
-                file.ReadBlocks(reader); 
-
-                var header = slot.AddSlot("Header");
-                ParseNiFile(header, file, path);
+                switch (Path.GetExtension(path).ToLower())
+                {
+                    case NIF_EXTENSION:
+                        ParseNiFile(slot, path);
+                        break;
+                    case LUZ_EXTENSION:
+                        ParseLuzFile(slot, path);
+                        break;
+                }
             }
             
             if (notLego.Count <= 0) return false;
@@ -81,13 +92,112 @@ public class LegoUniverseImporter : ResoniteMod
         }
     }
 
+    internal static void ParseLuzFile(Slot root, string path)
+    {
+        if (!File.Exists(config.GetValue(cdclientDirectory)))
+        {
+            Msg("Config not pointing at valid cdclient");
+            return;
+        }
+        
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+        using var reader = new BitReader(stream);
+        var file = new LuzFile();
+        file.Deserialize(reader);
+
+        var newRoot = root.AddSlot(Path.GetFileName(path));
+        ParseLuzFile(newRoot, file, path);
+    }
+    
+    internal static void ParseLuzFile(Slot root, LuzFile file, string path)
+    {
+        var lvls = new List<LvlFile>();
+
+        foreach (var p in file.Scenes.Select(i => i.FileName))
+        {
+            if (Path.GetExtension(p).ToLower() is LVL_EXTENSION)
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+                using var reader = new BitReader(stream);
+                var lvl = new LvlFile();
+                lvl.Deserialize(reader);
+                lvls.Add(lvl);
+            }
+        }
+        var ids = lvls.SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct();
+
+        var clientDirectory = config.GetValue(cdclientDirectory);
+
+        var clientBaseDirectory = Path.GetDirectoryName(clientDirectory);
+        
+        using var clientStream = new FileStream(clientDirectory, FileMode.Open, FileAccess.Read);
+        using var clientReader = new BitReader(clientStream);
+        var databaseFile = new DatabaseFile();
+        databaseFile.Deserialize(clientReader);
+        var database = new AccessDatabase(databaseFile);
+
+        var renderAssets = ids.Select(id => database.GetRenderComponent(id)).Where(get => get is not null)
+            .Select(i => i.render_asset).Distinct().ToList();
+
+        var nifs = root.AddSlot("NifTemplates");
+        nifs.ActiveSelf = false;
+
+        foreach (var asset in renderAssets)
+        {
+            var partialPath = asset.Replace(@"\\", "/").ToLower();
+            var fullPath = Path.Combine(clientBaseDirectory, partialPath);
+            
+            ParseNiFile(nifs, fullPath, partialPath);
+        }
+        
+        var objectTemplates = root.AddSlot("ObjectTemplates");
+
+        foreach (var id in ids)
+        {
+            var template = objectTemplates.AddSlot(id.ToString());
+            var renderAsset = database.GetRenderComponent(id);
+            if (renderAsset is not null)
+            {
+                var partialPath = renderAsset.render_asset.Replace(@"\\", "/").ToLower();
+                var get = nifs.FindChild(partialPath)?.FindChild("Scene");
+                if (get is not null)
+                {
+                    var templateRenderComponent = template.AddSlot("RenderComponent");
+                    get.Duplicate(templateRenderComponent, false);
+                }
+            }
+        }
+        
+        var sBlock = root.AddSlot("Scene");
+    }
+    
+    internal static void ParseNiFile(Slot root, string path, string name)
+    {
+        // TODO Make async
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+        using var reader = new BitReader(stream);
+        var file = new NiFile();
+        file.Deserialize(reader);
+        file.ReadBlocks(reader); 
+
+        //var header = slot.AddSlot("Header");
+        var header = root.AddSlot(name);
+        ParseNiFile(header, file, path);
+    }
+
+    internal static void ParseNiFile(Slot root, string path) => ParseNiFile(root, path, Path.GetFileName(path));
+
     internal static void ParseNiFile(Slot header, NiFile file, string path)
     {
         ParseNiHeader(header, file);
 
-        var sBlock = header.AddSlot("Block");
+        var context = new NiFileContext();
+
+        context.AssetSlot = header.AddSlot("Assets");
+        
+        var sBlock = header.AddSlot("Scene");
         if (file.Blocks[0] is NiNode root) // The root Block will contain exactly 1 element
-            ParseNiNode(sBlock, new NiFileContext(), root, null);
+            ParseNiNode(sBlock, context, root, null);
     }
 
     internal static void ParseNiHeader(Slot header, NiFile file)
@@ -144,6 +254,9 @@ public class LegoUniverseImporter : ResoniteMod
                     var sMesh = slot.AddSlot("Mesh");
                     ParseTriShape(sMesh, context, triShape);
                     break;
+                default:
+                    Msg($"Unknown child type: {obj.Children[i].Value.GetType()}");
+                    break;
             }
         }
 
@@ -183,7 +296,7 @@ public class LegoUniverseImporter : ResoniteMod
         var tempFilePath = localDb.GetTempFilePath(".meshx");
         mesh.SaveToFile(tempFilePath);
         var url = localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move).Result;
-        var staticMesh = slot.AttachComponent<StaticMesh>();
+        var staticMesh = context.AssetSlot.AttachComponent<StaticMesh>();
         staticMesh.URL.Value = url;
 
         MeshRenderer mr;
@@ -447,7 +560,7 @@ public class LegoUniverseImporter : ResoniteMod
         var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);
         if (!File.Exists(overallPath)) return null;
         var url = Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy).Result;
-        var provider = slot.AttachComponent<StaticTexture2D>();
+        var provider = context.AssetSlot.AttachComponent<StaticTexture2D>();
         provider.URL.Value = url;
         var filterModeFlag = (target.TexturingMapFlags & 0b0000111100000000) >> 8;
         provider.FilterMode.Value = filterModeFlag switch

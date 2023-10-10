@@ -37,6 +37,9 @@
     <Reference Include="libs\RakDotNet.IO.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\InfectedRose.Database\InfectedRose.Database.csproj" />
+    <ProjectReference Include="..\InfectedRose.Luz\InfectedRose.Luz.csproj" />
+    <ProjectReference Include="..\InfectedRose.Lvl\InfectedRose.Lvl.csproj" />
     <ProjectReference Include="..\InfectedRose.Nif\InfectedRose.Nif.csproj" />
   </ItemGroup>
 </Project>
