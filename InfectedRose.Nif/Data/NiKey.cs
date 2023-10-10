@@ -51,3 +51,20 @@ public class NiKeyTBC<T> : NiKey<T> where T : struct
         TBC = reader.Read<TBC>();
     }
 }
+
+public class NiKeyObject<T> : NiObject where T : NiObject
+{
+    public float Time;
+    public T Value;
+
+    public override void Serialize(BitWriter writer)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    public override void Deserialize(BitReader reader)
+    {
+        Time = reader.Read<float>();
+        Value = reader.Read<T>();
+    }
+}

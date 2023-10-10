@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\InfectedRose.Core\InfectedRose.Core.csproj" />
+      <ProjectReference Include="..\InfectedRose.Nif\InfectedRose.Nif.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Reference Include="../../RakDotNet.IO/RakDotNet.IO/bin/Debug/netstandard2.0/RakDotNet.IO.dll" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    </ItemGroup>
+
+</Project>

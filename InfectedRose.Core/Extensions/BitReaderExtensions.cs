@@ -53,7 +53,25 @@ namespace InfectedRose.Core
             return instance;
         }
         
+        public static T[] ReadArrayD<T>(this BitReader @this, uint size) where T : IDeserializable
+        {
+            var array = new T[size];
+            
+            for (var i = 0; i < size; i++) array[i] = @this.Read<T>();
+            
+            return array;
+        }
+        
         public static T[] ReadArrayD<T>(this BitReader @this, int size) where T : IDeserializable
+        {
+            var array = new T[size];
+            
+            for (var i = 0; i < size; i++) array[i] = @this.Read<T>();
+            
+            return array;
+        }
+        
+        public static T[] ReadArray<T>(this BitReader @this, uint size) where T : struct
         {
             var array = new T[size];
             
