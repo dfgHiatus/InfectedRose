@@ -14,7 +14,7 @@ public class NiPSysData : NiParticlesData
     public override void Deserialize(BitReader reader)
     {
         base.Deserialize(reader);
-        ParticleInfo = reader.ReadArray<NiParticleInfo>(NumVertices);
+        ParticleInfo = reader.ReadArrayD<NiParticleInfo>(NumVertices);
         HasRotationSpeeds = reader.ReadBool();
         if (HasRotationSpeeds) RotationSpeeds = reader.ReadArray<float>(NumVertices);
         NumAddedParticles = reader.Read<ushort>();
