@@ -30,11 +30,11 @@ public class LegoUniverseImporter : ResoniteMod
     internal static ModConfiguration config;
 
     [AutoRegisterConfigKey]
-    internal static ModConfigurationKey<bool> enabled =
+    internal readonly static ModConfigurationKey<bool> enabled =
         new("enabled", "Enabled", () => true);
     
     [AutoRegisterConfigKey]
-    internal static ModConfigurationKey<string> cdclientDirectory =
+    internal readonly static ModConfigurationKey<string> cdclientDirectory =
         new("cdClientDirectory", "Path to cdclient.fdb", () => "");
 
     public override void OnEngineInit()
