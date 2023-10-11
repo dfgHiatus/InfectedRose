@@ -177,7 +177,6 @@ namespace InfectedRose.Terrain.Pipeline
             }
             return triangles.ToArray();
         }
-
         public static Vector3[,] GenerateRealMap(this TerrainFile @this)
         {
             const float scale = 3.125f;

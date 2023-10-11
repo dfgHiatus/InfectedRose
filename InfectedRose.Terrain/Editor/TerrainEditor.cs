@@ -89,7 +89,6 @@ namespace InfectedRose.Terrain.Editor
 
             return new TerrainEditor(file);
         }
-
         public async Task SaveAsync(string path)
         {
             var heightMap = Source.GenerateHeightMap();
@@ -114,7 +113,6 @@ namespace InfectedRose.Terrain.Editor
 
             return chunk;
         }
-
         public void Load()
         {
             HeightLayer.LoadHeightMap();

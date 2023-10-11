@@ -1,12 +1,11 @@
 using System.Linq;
 using System.Numerics;
-using SkiaSharp;
-
+using InfectedRose.Nif;
 namespace InfectedRose.Terrain.Editor
 {
     public class ColorBrush : Brush
     {
-        public SKColor Color { get; set; }
+        public ByteColor4 Color { get; set; }
         
         public bool TargetSecond { get; set; }
         
