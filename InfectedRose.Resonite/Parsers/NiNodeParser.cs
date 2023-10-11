@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace InfectedRose.Resonite.Parsers;
 
-internal class NiNodeParser
+internal static class NiNodeParser
 {
     static void Msg(object o)
     {

@@ -64,7 +64,7 @@ public class LegoUniverseImporter : ResoniteMod
             var root = Engine.Current.WorldManager.FocusedWorld.RootSlot;
             root.StartGlobalTask(async delegate
             {
-                ProgressBarInterface pbi = await root.World.
+                var pbi = await root.World.
                     AddSlot("Import Indicator").
                     SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>
                         (FavoriteEntity.ProgressBar);

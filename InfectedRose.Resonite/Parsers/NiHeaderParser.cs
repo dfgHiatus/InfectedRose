@@ -1,10 +1,11 @@
-﻿using FrooxEngine;
+﻿using System.Collections.Generic;
+using FrooxEngine;
 using InfectedRose.Nif;
 using ResoniteModLoader;
 
 namespace InfectedRose.Resonite.Parsers;
 
-internal class NiHeaderParser
+internal static class NiHeaderParser
 {
     static void Msg(object o)
     {
@@ -54,13 +55,13 @@ internal class NiHeaderParser
         return slot;
     }
 
-    private static Slot AttachDynamicValueVariableCollectionWithValues<T>(Slot header, string slotName, string slotChildName, T[] collection)
+    private static Slot AttachDynamicValueVariableCollectionWithValues<T>(Slot header, string slotName, string slotChildName, IEnumerable<T> collection)
     {
         var slot = header.AddSlot(slotName);
         foreach (var item in collection)
         {
             var scStrings = header.AddSlot(slotChildName);
-            var dVar = slot.AttachComponent<DynamicValueVariable<T>>();
+            var dVar = scStrings.AttachComponent<DynamicValueVariable<T>>();
             dVar.VariableName.Value = LegoUniverseImporter.DYN_VAR_SPACE_PREFIX + item.ToString();
             dVar.Value.Value = item;
         }

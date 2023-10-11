@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace InfectedRose.Resonite.Parsers;
 
-internal class TriShapeParser
+internal static class TriShapeParser
 {
     static void Msg(object o)
     {

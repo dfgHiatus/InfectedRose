@@ -33,7 +33,7 @@ internal static class NiConversions
 
     internal static float3 ToFrooxEngine(this Vector3 vec)
     {
-        return new float3(vec.X, vec.Y, -vec.Z); //TODO: axis conversion
+        return new float3(vec.X, vec.Y, -vec.Z);
     }
 
     internal static int[] Data(this Nif.Triangle tri)
@@ -111,6 +111,7 @@ internal static class NiConversions
             }
        
         }
+        mesh.ReverseWinding();
         return mesh;
     }
 
@@ -118,11 +119,13 @@ internal static class NiConversions
     {
         var triangles = file.Triangulate();
         var mesh = new MeshX();
+        //var offset = new float3(file.Chunks[0].HeightMap.PositionX, 0, file.Chunks[0].HeightMap.PositionY);
+        var mul = new float3(-1, 1, -1);
         foreach (var tri in triangles)
         {
-            var v1 = mesh.AddVertex(tri.Position1);
-            var v2 = mesh.AddVertex(tri.Position2);
-            var v3 = mesh.AddVertex(tri.Position3);
+            var v1 = mesh.AddVertex(tri.Position1.ToFrooxEngine().zyx * mul);
+            var v2 = mesh.AddVertex(tri.Position2.ToFrooxEngine().zyx * mul);
+            var v3 = mesh.AddVertex(tri.Position3.ToFrooxEngine().zyx * mul);
             mesh.AddTriangle(v1, v2, v3);
         }
 
@@ -140,6 +143,7 @@ internal static class NiConversions
 
         mesh = mesh.GetMergedDoubles();
         mesh.RecalculateNormals();
+        mesh.FlipNormals();
         return mesh;
     }
 }
