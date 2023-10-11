@@ -23,6 +23,6 @@ public abstract class NiPixelFormat : NiObject
         Flags = reader.Read<byte>();
         Tiling = reader.Read<uint>();
         SRGBSpace = reader.ReadBool();
-        Channels = reader.ReadArray<PixelFormatComponent>(4);
+        Channels = reader.ReadArrayD<PixelFormatComponent>(4);
     }
 }
