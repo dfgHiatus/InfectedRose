@@ -132,8 +132,10 @@ internal static class NiConversions
         var yMax = mesh.Vertices.Max(i => i.Position.Z);
 
         foreach (var vert in mesh.Vertices)
-            vert.SetUV(0,
-                new float2(MathX.Remap(vert.Position.X, xMin, xMax, 0, 1),
+            vert.SetUV(
+                0,
+                new float2(
+                    MathX.Remap(vert.Position.X, xMin, xMax, 0, 1),
                     MathX.Remap(vert.Position.Z, yMin, yMax, 0, 1)));
 
         mesh = mesh.GetMergedDoubles();

@@ -2,22 +2,17 @@
 using Elements.Core;
 using FrooxEngine;
 using HarmonyLib;
-using InfectedRose.Nif;
-using RakDotNet.IO;
-using ResoniteModLoader;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Runtime.Remoting.Contexts;
-using System.Xml.Xsl;
 using InfectedRose.Database;
-using InfectedRose.Database.Concepts.Tables;
 using InfectedRose.Database.Fdb;
 using InfectedRose.Luz;
 using InfectedRose.Lvl;
-using static FrooxEngine.RadiantUI_Constants;
+using InfectedRose.Nif;
+using RakDotNet.IO;
+using ResoniteModLoader;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using AlphaHandling = FrooxEngine.AlphaHandling;
 
 namespace InfectedRose.Resonite;
@@ -73,27 +68,32 @@ public class LegoUniverseImporter : ResoniteMod
             dSpace.OnlyDirectBinding.Value = true;
             dSpace.SpaceName.Value = DYN_VAR_SPACE_PREFIX.TrimEnd('/');
 
-            foreach (var path in hasLego)
+            Engine.Current.WorldManager.FocusedWorld.RootSlot.StartGlobalTask(async delegate
             {
-                switch (Path.GetExtension(path).ToLower())
+                foreach (var path in hasLego)
                 {
-                    case NIF_EXTENSION:
-                        ParseNiFile(slot, path);
-                        break;
-                    case LUZ_EXTENSION:
-                        ParseLuzFile(slot, path);
-                        break;
+                    switch (Path.GetExtension(path).ToLower())
+                    {
+                        case NIF_EXTENSION:
+                            await ParseNiFile(slot, path);
+                            break;
+                        case LUZ_EXTENSION:
+                            await ParseLuzFile(slot, path);
+                            break;
+                    }
                 }
-            }
-            
+            });
+
             if (notLego.Count <= 0) return false;
             files = notLego.ToArray();
             return true;
         }
     }
 
-    internal static void ParseLuzFile(Slot root, string path)
+    internal static async Task ParseLuzFile(Slot root, string path)
     {
+        await default(ToBackground);
+
         if (!File.Exists(config.GetValue(cdclientDirectory)))
         {
             Msg("Config not pointing at valid cdclient");
@@ -105,12 +105,16 @@ public class LegoUniverseImporter : ResoniteMod
         var file = new LuzFile();
         file.Deserialize(reader);
 
+        await default(ToWorld);
         var newRoot = root.AddSlot(Path.GetFileName(path));
-        ParseLuzFile(newRoot, file, path);
+        await default(ToBackground);
+        await ParseLuzFile(newRoot, file, path);
     }
     
-    internal static void ParseLuzFile(Slot root, LuzFile file, string path)
+    internal static async Task ParseLuzFile(Slot root, LuzFile file, string path)
     {
+        await default(ToBackground);
+
         Msg($"Parsing luz file");
         var lvls = new List<LvlFile>();
         var clientDirectory = config.GetValue(cdclientDirectory);
@@ -128,7 +132,12 @@ public class LegoUniverseImporter : ResoniteMod
             lvls.Add(lvl);
         }
         Msg($"Got {lvls.Count} lvl files");
-        var ids = lvls.Where(i => i.LevelObjects is not null).SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct().ToList();
+        var ids = lvls.
+            Where(i => i.LevelObjects is not null).
+            SelectMany(i => i.LevelObjects.Templates).
+            Select(i => i.Lot).
+            Distinct().
+            ToList();
         Msg($"Got {ids.Count} unique lots");
         
         using var clientStream = new FileStream(clientDirectory, FileMode.Open, FileAccess.Read);
@@ -137,11 +146,17 @@ public class LegoUniverseImporter : ResoniteMod
         databaseFile.Deserialize(clientReader);
         var database = new AccessDatabase(databaseFile);
 
-        var renderAssets = ids.Select(id => database.GetRenderComponent(id)).Where(get => get is not null)
-            .Select(i => i.render_asset).Distinct().ToList();
+        var renderAssets = ids.
+            Select(database.GetRenderComponent).
+            Where(get => get is not null).
+            Select(i => i.render_asset).
+            Distinct().
+            ToList();
 
+        await default(ToWorld);
         var nifs = root.AddSlot("NifTemplates");
         nifs.ActiveSelf = false;
+        await default(ToBackground);
 
         foreach (var asset in renderAssets)
         {
@@ -149,26 +164,39 @@ public class LegoUniverseImporter : ResoniteMod
             var fullPath = Path.Combine(clientBaseDirectory, partialPath);
             if (Path.GetExtension(fullPath) is not NIF_EXTENSION) continue; //todo: kfm
             Msg($"Importing nif {partialPath}");
-            ParseNiFile(nifs, fullPath, partialPath);
+            await ParseNiFile(nifs, fullPath, partialPath);
         }
         
+        await default(ToWorld);
         var objectTemplates = root.AddSlot("ObjectTemplates");
         objectTemplates.ActiveSelf = false;
+        await default(ToBackground);
 
         foreach (var id in ids)
         {
+            await default(ToWorld);
             var template = objectTemplates.AddSlot(id.ToString());
+            await default(ToBackground);
+
             var renderAsset = database.GetRenderComponent(id);
             if (renderAsset is not null)
             {
                 var partialPath = renderAsset.render_asset.Replace(@"\\", "/").ToLower();
+
+                await default(ToWorld);
                 var get = nifs.FindChild(partialPath)?.FindChild("Scene");
+                await default(ToBackground);
+
                 if (get is not null)
                 {
+                    await default(ToWorld);
                     var templateRenderComponent = template.AddSlot("RenderComponent");
                     var d = get.Duplicate(templateRenderComponent, false);
+                    await default(ToBackground);
+
                     if (database.GetPhysicsComponent(id) is not null)
                     {
+                        await default(ToWorld);
                         foreach (var mesh in d.GetComponentsInChildren<MeshRenderer>())
                         {
                             if (mesh is SkinnedMeshRenderer) continue;
@@ -176,11 +204,13 @@ public class LegoUniverseImporter : ResoniteMod
                             collider.Mesh.Target = mesh.Mesh.Target;
                             collider.CharacterCollider.Value = true;
                         }
+                        await default(ToBackground);
                     }
                 }
             }
         }
         
+        await default(ToWorld);
         var sBlock = root.AddSlot("Scene");
         sBlock.LocalScale = float3.One * 0.25f;
 
@@ -195,37 +225,45 @@ public class LegoUniverseImporter : ResoniteMod
                 o.LocalScale = new float3(objects.Scale, objects.Scale, objects.Scale);
             }
         }
+        await default(ToBackground);
     }
-    
-    internal static void ParseNiFile(Slot root, string path, string name)
+
+    internal static async Task ParseNiFile(Slot root, string path, string name)
     {
-        // TODO Make async
+        await default(ToBackground);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
         using var reader = new BitReader(stream);
         var file = new NiFile();
         file.Deserialize(reader);
-        file.ReadBlocks(reader); 
+        file.ReadBlocks(reader);
+        // await file.ReadBlocksAsync(reader); 
 
         //var header = slot.AddSlot("Header");
+        await default(ToWorld);
         var header = root.AddSlot(name);
-        ParseNiFile(header, file, path);
+        await default(ToBackground);
+
+        await ParseNiFile(header, file, path);
     }
 
-    internal static void ParseNiFile(Slot root, string path) => ParseNiFile(root, path, Path.GetFileName(path));
+    internal static async Task ParseNiFile(Slot root, string path) => await ParseNiFile(root, path, Path.GetFileName(path));
 
-    internal static void ParseNiFile(Slot header, NiFile file, string path)
+    internal static async Task ParseNiFile(Slot header, NiFile file, string path)
     {
+        await default(ToWorld);
         ParseNiHeader(header, file);
+        await default(ToBackground);
 
         var context = new NiFileContext();
-
         context.Path = path;
 
-        context.AssetSlot = header.AddSlot("Assets");
-        
+        await default(ToWorld);
+        context.AssetSlot = header.AddSlot("Assets");    
         var sBlock = header.AddSlot("Scene");
+        await default(ToBackground);
+
         if (file.Blocks[0] is NiNode root) // The root Block will contain exactly 1 element
-            ParseNiNode(sBlock, context, root, null);
+            await ParseNiNode(sBlock, context, root, null);
     }
 
     internal static void ParseNiHeader(Slot header, NiFile file)
@@ -262,25 +300,32 @@ public class LegoUniverseImporter : ResoniteMod
         AttachDynamicValueVariableCollectionWithValues(header, "Groups", "Group", file.Header.Groups);
     }
 
-    internal static void ParseNiNode(Slot slot, NiFileContext context, NiNode obj, NiNode parent)
+    internal static async Task ParseNiNode(Slot slot, NiFileContext context, NiNode obj, NiNode parent)
     {
+        await default(ToBackground);
         context.ObjectSlots.Add(obj, slot);
         
+        await default(ToWorld);
         slot.LocalPosition = new float3(obj.Position.X, obj.Position.Y, obj.Position.Z);
         slot.LocalRotation = obj.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(obj.Scale, obj.Scale, obj.Scale);
+        await default(ToBackground);
 
         for (var i = 0; i < obj.Children.Length; i++)
         {
             switch (obj.Children[i].Value)
             {
                 case NiNode node:
+                    await default(ToWorld);
                     var sNode = slot.AddSlot("Node");
-                    ParseNiNode(sNode, context, node, obj);
+                    await default(ToBackground);
+                    await ParseNiNode(sNode, context, node, obj);
                     break;
                 case NiTriShape triShape:
+                    await default(ToWorld);
                     var sMesh = slot.AddSlot("Mesh");
-                    ParseTriShape(sMesh, context, triShape);
+                    await default(ToBackground);
+                    await ParseTriShape(sMesh, context, triShape);
                     break;
                 default:
                     Msg($"Unknown child type: {obj.Children[i].Value.GetType()}");
@@ -288,6 +333,7 @@ public class LegoUniverseImporter : ResoniteMod
             }
         }
 
+        await default(ToWorld);
         for (var i = 0; i < obj.Effects.Length; i++)
         {
             switch (obj.Effects[i].Value)
@@ -307,15 +353,19 @@ public class LegoUniverseImporter : ResoniteMod
                     break;
             }
         }
+        await default(ToBackground);
     }
 
-    internal static void ParseTriShape(Slot slot, NiFileContext context, NiTriShape shape)
+    internal static async Task ParseTriShape(Slot slot, NiFileContext context, NiTriShape shape)
     {
+        await default(ToBackground);
         context.ObjectSlots.Add(shape, slot);
         
+        await default(ToWorld);
         slot.LocalPosition = new float3(shape.Position.X, shape.Position.Y, shape.Position.Z);
         slot.LocalRotation = shape.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(shape.Scale,shape.Scale,shape.Scale);
+        await default(ToBackground);
 
         var skinned = shape.Skin.Value is not null;
         var mesh = (shape.Data.Value as NiTriShapeData).ToFrooxEngine(shape.Skin.Value);
@@ -323,7 +373,9 @@ public class LegoUniverseImporter : ResoniteMod
         var localDb = Engine.Current.LocalDB;
         var tempFilePath = localDb.GetTempFilePath(".meshx");
         mesh.SaveToFile(tempFilePath);
-        var url = localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move).Result;
+        var url = await localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move);
+
+        await default(ToWorld);
         var staticMesh = context.AssetSlot.AttachComponent<StaticMesh>();
         staticMesh.URL.Value = url;
 
@@ -343,13 +395,19 @@ public class LegoUniverseImporter : ResoniteMod
             mr = slot.AttachComponent<MeshRenderer>();  
         }
 
+        await default(ToBackground);
+        var mat = await DetermineMaterial(slot, shape, context);
+        await default(ToWorld);
+
         mr.Mesh.Target = staticMesh;
-        mr.Materials.Add(DetermineMaterial(slot, shape, context));
+        mr.Materials.Add(mat);
         slot.AttachComponent<MeshCollider>();
+        await default(ToBackground);
     }
 
-    internal static IAssetProvider<Material> DetermineMaterial(Slot slot, NiTriShape nts, NiFileContext context)
+    internal static async Task<IAssetProvider<Material>> DetermineMaterial(Slot slot, NiTriShape nts, NiFileContext context)
     {
+        await default(ToBackground);
         NiVertexColorProperty niVertexColorProperty = null;
         NiAlphaProperty niAlphaProperty = null;
         NiSpecularProperty niSpecularProperty = null;
@@ -397,11 +455,11 @@ public class LegoUniverseImporter : ResoniteMod
         if (niTexturingProperty is not null)
         {
             if (niTexturingProperty.HasBaseTexture)
-                BaseTexture = ImportTexture(slot, context, niTexturingProperty.BaseTexture);
+                BaseTexture = await ImportTexture(slot, context, niTexturingProperty.BaseTexture);
             if (niTexturingProperty.HasGlowTexture)
-                GlowTexture = ImportTexture(slot, context, niTexturingProperty.GlowTexture);
+                GlowTexture = await ImportTexture(slot, context, niTexturingProperty.GlowTexture);
             if (niTexturingProperty.HasNormalTexture)
-                NormalTexture = ImportTexture(slot, context, niTexturingProperty.NormalTexture);
+                NormalTexture = await ImportTexture(slot, context, niTexturingProperty.NormalTexture);
         }
         if (niAlphaProperty is not null)
         {
@@ -425,60 +483,81 @@ public class LegoUniverseImporter : ResoniteMod
         {
             if (LegoMaterialDefinitions.PBS_VertexColorMetallic.Any(name => name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 pbsMetallic = slot.AttachComponent<PBS_VertexColorMetallic>();
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.PBS_VertexColorMetallic_Emissive.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
                 m.EmissiveColor.Value = colorX.White;
                 pbsMetallic = m;
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.PBS_VertexColorMetallic_Transparent.Any(name => name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
                 m.AlphaHandling.Value = AlphaHandling.AlphaBlend;
                 m.AlbedoColor.Value = new colorX(1f, 1f, 1f, 0.33f);
                 pbsMetallic = m;
+                await default(ToWorld);
             }
             else if (LegoMaterialDefinitions.PBS_VertexColorMetallic_Metallic.Any(name => name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 var m = slot.AttachComponent<PBS_VertexColorMetallic>();
                 m.Metallic.Value = 1f;
                 pbsMetallic = m;
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.PBS_VertexColorSpecular.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 pbsSpecular = slot.AttachComponent<PBS_VertexColorSpecular>();
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.PBS_VertexColorSpecular_Specular.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 pbsSpecular = slot.AttachComponent<PBS_VertexColorSpecular>();
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.PBS_RimMetallic.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 pbsRimMaterial = slot.AttachComponent<PBS_RimMetallic>();
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.GrayscaleMaterial.Any(name => name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 var m = slot.AttachComponent<GrayscaleMaterial>();
                 m.RatioBlue.Value = 1f;
                 m.RatioGreen.Value = 1f;
                 m.RatioRed.Value = 1f;
+                await default(ToBackground);
                 return m; // No further processing needed
+
             }
             else if (LegoMaterialDefinitions.UnlitDistanceLerp.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 unlitDistanceLerpMaterial = slot.AttachComponent<UnlitDistanceLerpMaterial>();
+                await default(ToBackground);
             }
             else if (LegoMaterialDefinitions.Unlit.Any(name =>
                          name.Contains(niMaterialProperty.Name.Value)))
             {
+                await default(ToWorld);
                 unlitMaterial = slot.AttachComponent<UnlitMaterial>();
+                await default(ToBackground);
             }
 
             //0b1000000000 //alpha test mask
@@ -493,6 +572,7 @@ public class LegoUniverseImporter : ResoniteMod
             //specular's flags is an enum with two values, essentially a boolean, with the values
             //"SPECULAR_DISABLED" and "SPECULAR_ENABLED"
 
+            await default(ToWorld);
             if (pbsMetallic is not null)
             {
                 pbsMetallic.BlendMode = blendMode ?? BlendMode.Opaque;
@@ -577,18 +657,28 @@ public class LegoUniverseImporter : ResoniteMod
 
                 return unlitDistanceLerpMaterial;
             }
+            await default(ToBackground);
         }
 
-        return slot.AttachComponent<PBS_VertexColorMetallic>();
+        await default(ToWorld);
+        var pbsm = slot.AttachComponent<PBS_VertexColorMetallic>();
+        await default(ToBackground);
+
+        return pbsm;
     }
 
-    internal static IAssetProvider<ITexture2D> ImportTexture(Slot slot, NiFileContext context, TexDesc target)
+    internal static async Task<IAssetProvider<ITexture2D>> ImportTexture(Slot slot, NiFileContext context, TexDesc target)
     {
+        await default(ToBackground);
         var path = target.Source.Value.Path.Value;
-        if (string.IsNullOrWhiteSpace(path)) return null;
+        if (string.IsNullOrWhiteSpace(path)) 
+            return null;
         var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);
-        if (!File.Exists(overallPath)) return null;
-        var url = Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy).Result;
+        if (!File.Exists(overallPath)) 
+            return null;
+        var url = await Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy);
+
+        await default(ToWorld);
         var provider = context.AssetSlot.AttachComponent<StaticTexture2D>();
         provider.URL.Value = url;
         var filterModeFlag = (target.TexturingMapFlags & 0b0000111100000000) >> 8;
@@ -623,7 +713,8 @@ public class LegoUniverseImporter : ResoniteMod
                 provider.WrapModeV.Value = TextureWrapMode.Repeat;
                 break;
         }
-        //target.
+        
+        await default(ToBackground);
         return provider;
     }
 
