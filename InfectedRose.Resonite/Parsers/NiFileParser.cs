@@ -1,4 +1,5 @@
-﻿using FrooxEngine;
+﻿using Elements.Core;
+using FrooxEngine;
 using InfectedRose.Nif;
 using RakDotNet.IO;
 using ResoniteModLoader;
@@ -14,7 +15,7 @@ internal static class NiFileParser
         ResoniteMod.Msg(o);
     }
 
-    internal static async Task ParseNiFile(Slot root, string path, string name)
+    internal static async Task ParseNiFile(Slot root, string path, string name, IProgressIndicator pbi)
     {
         await default(ToBackground);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
@@ -32,7 +33,7 @@ internal static class NiFileParser
         await ParseNiFile(header, file, path);
     }
 
-    internal static async Task ParseNiFile(Slot root, string path) => await ParseNiFile(root, path, Path.GetFileName(path));
+    internal static async Task ParseNiFile(Slot root, string path, IProgressIndicator pbi) => await ParseNiFile(root, path, Path.GetFileName(path), pbi);
 
     internal static async Task ParseNiFile(Slot header, NiFile file, string path)
     {

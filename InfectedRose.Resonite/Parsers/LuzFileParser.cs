@@ -21,16 +21,22 @@ internal class LuzFileParser
         ResoniteMod.Msg(o);
     }
 
-    internal static async Task ParseLuzFile(Slot root, string path)
+    internal static async Task ParseLuzFile(Slot root, string path, IProgressIndicator pbi)
     {
-
         await default(ToBackground);
 
         if (!File.Exists(LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.CDClientDirectory)))
         {
+            await default(ToWorld);
+            pbi.ProgressFail("Config not pointing at valid cdclient");
+            await default(ToBackground);
             Msg("Config not pointing at valid cdclient");
             return;
         }
+
+        await default(ToWorld);
+        pbi.UpdateProgress(0f, "Parsing luz file", "");
+        await default(ToBackground);
 
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
         using var reader = new BitReader(stream);
@@ -40,11 +46,13 @@ internal class LuzFileParser
         await default(ToWorld);
         var newRoot = root.AddSlot(Path.GetFileName(path));
         await default(ToBackground);
-        await ParseLuzFile(newRoot, file, path);
+        await ParseLuzFile(newRoot, file, path, pbi);
     }
 
-    internal static async Task ParseLuzFile(Slot root, LuzFile file, string path)
+    internal static async Task ParseLuzFile(Slot root, LuzFile file, string path, IProgressIndicator pbi)
     {
+        await default(ToWorld);
+        pbi.UpdateProgress(0f, "Parsing luz file", "");
         await default(ToBackground);
 
         Msg($"Parsing luz file");
@@ -119,7 +127,7 @@ internal class LuzFileParser
             var fullPath = Path.Combine(clientBaseDirectory, partialPath);
             if (Path.GetExtension(fullPath) is not LegoUniverseImporter.NIF_EXTENSION) continue; //todo: kfm
             Msg($"Importing nif {partialPath}");
-            await NiFileParser.ParseNiFile(nifs, fullPath, partialPath);
+            await NiFileParser.ParseNiFile(nifs, fullPath, partialPath, pbi);
         }
 
         await default(ToWorld);

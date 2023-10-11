@@ -35,6 +35,9 @@
     <Reference Include="BepuPhysics">
       <HintPath>$(ResonitePath)Resonite_Data\Managed\BepuPhysics.dll</HintPath>
     </Reference>
+	<Reference Include="SkyFrost.Base">
+      <HintPath>$(ResonitePath)Resonite_Data\Managed\SkyFrost.Base.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="libs\RakDotNet.IO.dll" />

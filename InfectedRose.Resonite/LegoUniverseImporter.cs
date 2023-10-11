@@ -1,5 +1,6 @@
 ﻿using Elements.Assets;
 using Elements.Core;
+using SkyFrost.Base;
 using FrooxEngine;
 using HarmonyLib;
 using InfectedRose.Resonite.Parsers;
@@ -60,17 +61,33 @@ public class LegoUniverseImporter : ResoniteMod
             dSpace.OnlyDirectBinding.Value = true;
             dSpace.SpaceName.Value = DYN_VAR_SPACE_PREFIX.TrimEnd('/');
 
-            Engine.Current.WorldManager.FocusedWorld.RootSlot.StartGlobalTask(async delegate
+            var root = Engine.Current.WorldManager.FocusedWorld.RootSlot;
+            root.StartGlobalTask(async delegate
             {
+                ProgressBarInterface pbi = await root.World.
+                    AddSlot("Import Indicator").
+                    SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>
+                        (FavoriteEntity.ProgressBar);
+                pbi.Slot.PositionInFrontOfUser();
+                pbi.Initialize(canBeHidden: true);
+
                 foreach (var path in hasLego)
                 {
                     switch (Path.GetExtension(path).ToLower())
                     {
                         case NIF_EXTENSION:
-                            await NiFileParser.ParseNiFile(slot, path);
+                            await NiFileParser.ParseNiFile(slot, path, pbi);
+                            await default(ToWorld);
+                            pbi.ProgressDone("Import finished");
+                            // root.RunInSeconds(5f, () => pbi.Slot.Destroy()); // TEST ME!
+                            await default(ToBackground);
                             break;
                         case LUZ_EXTENSION:
-                            await LuzFileParser.ParseLuzFile(slot, path);
+                            await LuzFileParser.ParseLuzFile(slot, path, pbi);
+                            await default(ToWorld);
+                            pbi.ProgressDone("Import finished");
+                            // root.RunInSeconds(5f, () => pbi.Slot.Destroy()); // TEST ME!
+                            await default(ToBackground);
                             break;
                     }
                 }
