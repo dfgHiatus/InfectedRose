@@ -38,7 +38,6 @@ namespace InfectedRose.Terrain.Editor
                 SetHeight(position - new Vector2(1, 1), value);
             }
         }
-
         public void LoadHeightMap()
         {
             var heightMap = Editor.Source.GenerateHeightMap();

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Numerics;
-using SkiaSharp;
+using InfectedRose.Nif;
 
 namespace InfectedRose.Terrain.Editor
 {
@@ -8,7 +8,7 @@ namespace InfectedRose.Terrain.Editor
     {
         public TerrainEditor Editor { get; }
         
-        public Dictionary<Vector2, SKColor> Colors { get; }
+        public Dictionary<Vector2, ByteColor4> Colors { get; }
         
         private bool Second { get; }
 
@@ -16,12 +16,12 @@ namespace InfectedRose.Terrain.Editor
         {
             Editor = editor;
             
-            Colors = new Dictionary<Vector2, SKColor>();
+            Colors = new Dictionary<Vector2, ByteColor4>();
 
             Second = second;
         }
 
-        public void SetColor(Vector2 position, SKColor value)
+        public void SetColor(Vector2 position, ByteColor4 value)
         {
             position /= 2;
 
@@ -45,7 +45,6 @@ namespace InfectedRose.Terrain.Editor
                 SetColor(position - new Vector2(1, 1), value);
             }
         }
-        
         public void LoadColorMap()
         {
             var colorMap = Editor.Source.GenerateColorMap(Second);
@@ -64,7 +63,6 @@ namespace InfectedRose.Terrain.Editor
                 }
             }
         }
-
         public void ApplyColorMap()
         {
             var colorMap = Editor.Source.GenerateColorMap(Second);

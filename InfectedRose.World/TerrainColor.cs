@@ -1,6 +1,6 @@
 using System.Numerics;
 using System.Xml.Serialization;
-using SkiaSharp;
+using InfectedRose.Nif;
 
 namespace InfectedRose.World
 {
@@ -9,7 +9,7 @@ namespace InfectedRose.World
     {
         [XmlElement] public float Size { get; set; }
         
-        [XmlElement] public SKColor Color { get; set; }
+        [XmlElement] public ByteColor4 Color { get; set; }
         
         [XmlElement] public Vector2 Position { get; set; }
     }

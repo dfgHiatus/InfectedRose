@@ -1,6 +1,6 @@
 using System;
-using SkiaSharp;
 using InfectedRose.Core;
+using InfectedRose.Nif;
 using RakDotNet.IO;
 
 namespace InfectedRose.Terrain
@@ -9,14 +9,14 @@ namespace InfectedRose.Terrain
     {
         public int Size { get; set; }
         
-        public SKColor[] Data { get; set; }
+        public ByteColor4[] Data { get; set; }
 
-        public SKColor GetValue(int x, int y)
+        public ByteColor4 GetValue(int x, int y)
         {
             return Data[y * Size + x];
         }
 
-        public void SetColor(int x, int y, SKColor value)
+        public void SetColor(int x, int y, ByteColor4 value)
         {
             Data[y * Size + x] = value;
         }
@@ -27,22 +27,7 @@ namespace InfectedRose.Terrain
 
             for (var i = 0; i < Size * Size; i++)
             {
-                var color = Data[i];
-
-                var bytes = new[]
-                {
-                    color.Red,
-                    color.Green,
-                    color.Blue,
-                    color.Alpha,
-                };
-#if NETSTANDARD2_1_OR_GREATER
-                var value = BitConverter.ToUInt32(bytes);
-#else
-                var value = BitConverter.ToUInt32(bytes, 0);
-#endif
-
-                writer.Write(value);
+                writer.Write(Data[i]);
             }
         }
 
@@ -50,17 +35,11 @@ namespace InfectedRose.Terrain
         {
             Size = reader.Read<int>();
             
-            Data = new SKColor[Size * Size];
+            Data = new ByteColor4[Size * Size];
 
             for (var i = 0; i < Data.Length; i++)
             {
-                var data = reader.Read<uint>();
-
-                var bytes = BitConverter.GetBytes(data);
-
-                var color = new SKColor(bytes[2], bytes[1], bytes[0], bytes[3]);
-
-                Data[i] = color;
+                Data[i] = reader.Read<ByteColor4>();
             }
         }
 
@@ -70,11 +49,11 @@ namespace InfectedRose.Terrain
             {
                 var map = new ColorMap {Size = 32};
                 
-                map.Data = new SKColor[map.Size * map.Size];
+                map.Data = new ByteColor4[map.Size * map.Size];
 
                 for (var i = 0; i < map.Data.Length; i++)
                 {
-                    map.Data[i] = new SKColor(127, 127, 127); // Creates green
+                    map.Data[i] = new ByteColor4{ G = 255 }; // Creates green
                 }
 
                 return map;
