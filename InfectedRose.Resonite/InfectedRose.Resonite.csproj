@@ -32,6 +32,9 @@
     <Reference Include="ResoniteModLoader">
       <HintPath>$(ResonitePath)Libraries\ResoniteModLoader.dll</HintPath>
     </Reference>
+    <Reference Include="BepuPhysics">
+      <HintPath>$(ResonitePath)Resonite_Data\Managed\BepuPhysics.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="libs\RakDotNet.IO.dll" />
@@ -41,5 +44,6 @@
     <ProjectReference Include="..\InfectedRose.Luz\InfectedRose.Luz.csproj" />
     <ProjectReference Include="..\InfectedRose.Lvl\InfectedRose.Lvl.csproj" />
     <ProjectReference Include="..\InfectedRose.Nif\InfectedRose.Nif.csproj" />
+    <ProjectReference Include="..\InfectedRose.Terrain\InfectedRose.Terrain.csproj" />
   </ItemGroup>
 </Project>

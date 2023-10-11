@@ -3,6 +3,8 @@ using System.Linq;
 using System.Numerics;
 using Elements.Core;
 using InfectedRose.Nif;
+using InfectedRose.Terrain;
+using InfectedRose.Terrain.Pipeline;
 
 namespace InfectedRose.Resonite;
 
@@ -21,7 +23,12 @@ internal static class NiConversions
     internal static floatQ ToFrooxEngine(this Matrix3X3 mat)
     {
         var q = Quaternion.CreateFromRotationMatrix(mat.FourByFour);
-        return new floatQ(q.X, q.Y, q.Z, q.W); // TODO: axis conversion
+        return q.ToFrooxEngine();
+    }
+    
+    internal static floatQ ToFrooxEngine(this Quaternion q)
+    {
+        return new floatQ(-q.X, -q.Y, q.Z, q.W); // TODO: axis conversion
     }
 
     internal static float3 ToFrooxEngine(this Vector3 vec)
@@ -49,8 +56,8 @@ internal static class NiConversions
                 vert.Position = data.Vertices[i].ToFrooxEngine();
                 if (data.HasNormals)
                 {
-                    vert.Normal = data.Normals[i].ToFrooxEngine();
-                    if ((data.DataFlags & 61440) != 0) vert.Tangent = data.Tangents[i];
+                    vert.Normal = -data.Normals[i].ToFrooxEngine();
+                    //if ((data.DataFlags & 61440) != 0) vert.Tangent = data.Tangents[i].ToFrooxEngine();
                     // No bitangents
                 }
                 if (data.HasVertexColors) vert.Color = data.VertexColors[i].ToFrooxEngine().BaseColor;
@@ -104,6 +111,33 @@ internal static class NiConversions
             }
        
         }
+        return mesh;
+    }
+
+    internal static MeshX ToFrooxEngine(this TerrainFile file)
+    {
+        var triangles = file.Triangulate();
+        var mesh = new MeshX();
+        foreach (var tri in triangles)
+        {
+            var v1 = mesh.AddVertex(tri.Position1);
+            var v2 = mesh.AddVertex(tri.Position2);
+            var v3 = mesh.AddVertex(tri.Position3);
+            mesh.AddTriangle(v1, v2, v3);
+        }
+
+        var xMin = mesh.Vertices.Min(i => i.Position.X);
+        var xMax = mesh.Vertices.Max(i => i.Position.X);
+        var yMin = mesh.Vertices.Min(i => i.Position.Z);
+        var yMax = mesh.Vertices.Max(i => i.Position.Z);
+
+        foreach (var vert in mesh.Vertices)
+            vert.SetUV(0,
+                new float2(MathX.Remap(vert.Position.X, xMin, xMax, 0, 1),
+                    MathX.Remap(vert.Position.Z, yMin, yMax, 0, 1)));
+
+        mesh = mesh.GetMergedDoubles();
+        mesh.RecalculateNormals();
         return mesh;
     }
 }

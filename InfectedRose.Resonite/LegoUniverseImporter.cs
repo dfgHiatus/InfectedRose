@@ -111,24 +111,25 @@ public class LegoUniverseImporter : ResoniteMod
     
     internal static void ParseLuzFile(Slot root, LuzFile file, string path)
     {
+        Msg($"Parsing luz file");
         var lvls = new List<LvlFile>();
+        var clientDirectory = config.GetValue(cdclientDirectory);
+        var clientBaseDirectory = Path.GetDirectoryName(clientDirectory);
+        
+        Msg($"Parsing lvl files");
 
         foreach (var p in file.Scenes.Select(i => i.FileName))
         {
-            if (Path.GetExtension(p).ToLower() is LVL_EXTENSION)
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-                using var reader = new BitReader(stream);
-                var lvl = new LvlFile();
-                lvl.Deserialize(reader);
-                lvls.Add(lvl);
-            }
+            if (Path.GetExtension(p).ToLower() is not LVL_EXTENSION) continue;
+            using var stream = new FileStream(Path.Combine(Path.GetDirectoryName(path), p), FileMode.Open, FileAccess.Read);
+            using var reader = new BitReader(stream);
+            var lvl = new LvlFile();
+            lvl.Deserialize(reader);
+            lvls.Add(lvl);
         }
-        var ids = lvls.SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct();
-
-        var clientDirectory = config.GetValue(cdclientDirectory);
-
-        var clientBaseDirectory = Path.GetDirectoryName(clientDirectory);
+        Msg($"Got {lvls.Count} lvl files");
+        var ids = lvls.Where(i => i.LevelObjects is not null).SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct().ToList();
+        Msg($"Got {ids.Count} unique lots");
         
         using var clientStream = new FileStream(clientDirectory, FileMode.Open, FileAccess.Read);
         using var clientReader = new BitReader(clientStream);
@@ -146,11 +147,13 @@ public class LegoUniverseImporter : ResoniteMod
         {
             var partialPath = asset.Replace(@"\\", "/").ToLower();
             var fullPath = Path.Combine(clientBaseDirectory, partialPath);
-            
+            if (Path.GetExtension(fullPath) is not NIF_EXTENSION) continue; //todo: kfm
+            Msg($"Importing nif {partialPath}");
             ParseNiFile(nifs, fullPath, partialPath);
         }
         
         var objectTemplates = root.AddSlot("ObjectTemplates");
+        objectTemplates.ActiveSelf = false;
 
         foreach (var id in ids)
         {
@@ -163,12 +166,35 @@ public class LegoUniverseImporter : ResoniteMod
                 if (get is not null)
                 {
                     var templateRenderComponent = template.AddSlot("RenderComponent");
-                    get.Duplicate(templateRenderComponent, false);
+                    var d = get.Duplicate(templateRenderComponent, false);
+                    if (database.GetPhysicsComponent(id) is not null)
+                    {
+                        foreach (var mesh in d.GetComponentsInChildren<MeshRenderer>())
+                        {
+                            if (mesh is SkinnedMeshRenderer) continue;
+                            var collider = mesh.Slot.AttachComponent<MeshCollider>();
+                            collider.Mesh.Target = mesh.Mesh.Target;
+                            collider.CharacterCollider.Value = true;
+                        }
+                    }
                 }
             }
         }
         
         var sBlock = root.AddSlot("Scene");
+        sBlock.LocalScale = float3.One * 0.25f;
+
+        foreach (var objects in lvls.Where(i => i.LevelObjects is not null).SelectMany(i => i.LevelObjects.Templates))
+        {
+            var template = objectTemplates.FindChild(objects.Lot.ToString());
+            if (template is not null)
+            {
+                var o = template.Duplicate(sBlock, false);
+                o.LocalPosition = objects.Position.ToFrooxEngine();
+                o.LocalRotation = objects.Rotation; //TODO
+                o.LocalScale = new float3(objects.Scale, objects.Scale, objects.Scale);
+            }
+        }
     }
     
     internal static void ParseNiFile(Slot root, string path, string name)
@@ -192,6 +218,8 @@ public class LegoUniverseImporter : ResoniteMod
         ParseNiHeader(header, file);
 
         var context = new NiFileContext();
+
+        context.Path = path;
 
         context.AssetSlot = header.AddSlot("Assets");
         
@@ -557,6 +585,7 @@ public class LegoUniverseImporter : ResoniteMod
     internal static IAssetProvider<ITexture2D> ImportTexture(Slot slot, NiFileContext context, TexDesc target)
     {
         var path = target.Source.Value.Path.Value;
+        if (string.IsNullOrWhiteSpace(path)) return null;
         var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);
         if (!File.Exists(overallPath)) return null;
         var url = Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy).Result;

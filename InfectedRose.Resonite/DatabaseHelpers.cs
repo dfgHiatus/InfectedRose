@@ -12,10 +12,8 @@ public static class DatabaseHelpers
         var renderers = database["RenderComponent"].Select(i => new RenderComponentTable(i));
         var registry = database["ComponentsRegistry"].Select(i => new ComponentsRegistryTable(i));
 
-        var yippee = registry.First(i => i.id == lot && i.component_type == 2);
-        var yippee2 = renderers.First(i => i.id == yippee.component_id);
-
-        return yippee2;
+        var yippee = registry.FirstOrDefault(i => i.id == lot && i.component_type == 2);
+        return yippee is not null ? renderers.FirstOrDefault(i => i.id == yippee.component_id) : null;
     }
     
     public static PhysicsComponentTable GetPhysicsComponent(this AccessDatabase database, int lot)
@@ -24,9 +22,7 @@ public static class DatabaseHelpers
         var renderers = database["PhysicsComponent"].Select(i => new PhysicsComponentTable(i));
         var registry = database["ComponentsRegistry"].Select(i => new ComponentsRegistryTable(i));
 
-        var yippee = registry.First(i => i.id == lot && i.component_type == 3);
-        var yippee2 = renderers.First(i => i.id == yippee.component_id);
-
-        return yippee2;
+        var yippee = registry.FirstOrDefault(i => i.id == lot && i.component_type == 3);
+        return yippee is not null ? renderers.FirstOrDefault(i => i.id == yippee.component_id) : null;
     }
 }
