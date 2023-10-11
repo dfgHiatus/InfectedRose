@@ -179,7 +179,7 @@ namespace InfectedRose.Terrain.Pipeline
         }
         public static Vector3[,] GenerateRealMap(this TerrainFile @this)
         {
-            const float scale = 3.125f;
+            var scale = @this.Chunks[0].HeightMap.ScaleFactor;
             
             var heightMap = @this.GenerateHeightMap();
 
