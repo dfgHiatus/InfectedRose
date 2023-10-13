@@ -29,7 +29,25 @@ public class LegoUniverseImporter : ResoniteMod
     [AutoRegisterConfigKey]
     internal readonly static ModConfigurationKey<string> CDClientDirectory =
         new("cdClientDirectory", "Path to cdclient.fdb", () => "");
-
+    
+    /*
+    [AutoRegisterConfigKey]
+    internal readonly static ModConfigurationKey<float4> DEBUG_QUATERNIONMULTIPLIER =
+        new("debugquatmulti", "QUATMULTI", () => float4.One);
+    
+    [AutoRegisterConfigKey]
+    internal readonly static ModConfigurationKey<int4> DEBUG_QUATERNIONSWIZZLE =
+        new("debugquatswizzle", "QUATSWIZZLE", () => new int4(0, 1, 2, 3));
+    
+    
+    [AutoRegisterConfigKey]
+    internal readonly static ModConfigurationKey<float3> DEBUG_VECTORMULTIPLIER =
+        new("debugvectormulti", "VECMULTI", () => float3.One);
+    
+    [AutoRegisterConfigKey]
+    internal readonly static ModConfigurationKey<int3> DEBUG_VECTORSWIZZLE =
+        new("debugvectorswizzle", "VECSWIZZLE", () => new int3(0, 1, 2));
+*/
     public override void OnEngineInit()
     {
         new Harmony("net.dfgHiatus.LegoUniverseImporter").PatchAll();

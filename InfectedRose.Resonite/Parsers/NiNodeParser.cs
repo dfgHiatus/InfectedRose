@@ -19,7 +19,7 @@ internal static class NiNodeParser
         context.ObjectSlots.Add(obj, slot);
 
         await default(ToWorld);
-        slot.LocalPosition = new float3(obj.Position.X, obj.Position.Y, obj.Position.Z);
+        slot.LocalPosition = obj.Position.ToFrooxEngine();
         slot.LocalRotation = obj.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(obj.Scale, obj.Scale, obj.Scale);
         await default(ToBackground);
@@ -36,7 +36,7 @@ internal static class NiNodeParser
                     break;
                 case NiTriShape triShape:
                     await default(ToWorld);
-                    var sMesh = slot.AddSlot("Mesh");
+                    var sMesh = slot.AddSlot(triShape.Name);
                     await default(ToBackground);
                     await TriShapeParser.ParseTriShape(sMesh, context, triShape);
                     break;

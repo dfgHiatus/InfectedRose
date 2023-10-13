@@ -21,7 +21,7 @@ internal static class TriShapeParser
         context.ObjectSlots.Add(shape, slot);
 
         await default(ToWorld);
-        slot.LocalPosition = new float3(shape.Position.X, shape.Position.Y, shape.Position.Z);
+        slot.LocalPosition = shape.Position.ToFrooxEngine();
         slot.LocalRotation = shape.Rotation.ToFrooxEngine();
         slot.LocalScale = new float3(shape.Scale, shape.Scale, shape.Scale);
         await default(ToBackground);

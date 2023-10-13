@@ -31,11 +31,11 @@ internal static class LuzFileParser
             await default(ToWorld);
             pbi.ProgressFail("Config not pointing at valid cdclient");
             await default(ToBackground);
-            Msg("Config not pointing at valid cdclient");
             return;
         }
 
         await default(ToWorld);
+        root.LocalRotation = floatQ.Euler(90, 0, 0);
         pbi.UpdateProgress(0f, "Parsing luz file", "");
         await default(ToBackground);
 
@@ -53,7 +53,7 @@ internal static class LuzFileParser
     internal static async Task ParseLuzFile(Slot root, LuzFile file, string path, IProgressIndicator pbi)
     {
         await default(ToWorld);
-        pbi.UpdateProgress(0f, "Parsing luz file", "");
+        pbi.UpdateProgress(0f, "Creating root object slots", "");
         
         var terrainSlot = root.AddSlot("Terrain");
         terrainSlot.LocalScale = float3.One * 0.25f;
@@ -67,12 +67,11 @@ internal static class LuzFileParser
         var sBlock = root.AddSlot("Scene");
         sBlock.LocalScale = float3.One * 0.25f;
         
+        pbi.UpdateProgress(0f, "Parsing terrain file", "");
         await default(ToBackground);
-
-        Msg($"Parsing luz file");
-
+        
         {
-            ResoniteMod.Msg($"Parsing terrain file");
+            
             using var stream = new FileStream(Path.Combine(Path.GetDirectoryName(path), file.TerrainFileName), FileMode.Open, FileAccess.Read);
             using var reader = new BitReader(stream);
             var terrain = new TerrainFile();
@@ -83,7 +82,7 @@ internal static class LuzFileParser
             var localDb = Engine.Current.LocalDB;
             var tempFilePath = localDb.GetTempFilePath(".meshx");
             mesh.SaveToFile(tempFilePath);
-            var url = localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move).Result;
+            var url = await localDb.ImportLocalAssetAsync(tempFilePath, LocalDB.ImportLocation.Move);
 
             await default(ToWorld);
             var staticMesh = terrainSlot.AttachComponent<StaticMesh>();
@@ -99,14 +98,13 @@ internal static class LuzFileParser
             terrainCollider.Mesh.Target = staticMesh;
             terrainCollider.CharacterCollider.Value = true;
 
+            pbi.UpdateProgress(0f, "Parsing lvl files", "");
             await default(ToBackground);
         }
 
         var lvls = new Dictionary<string, LvlFile>();
         var clientDirectory = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.CDClientDirectory);
         var clientBaseDirectory = Path.GetDirectoryName(clientDirectory);
-
-        Msg($"Parsing lvl files");
         
         foreach (var p in file.Scenes.Select(i => i.FileName))
         {
@@ -117,9 +115,7 @@ internal static class LuzFileParser
             lvl.Deserialize(reader);
             lvls.Add(p, lvl);
         }
-        Msg($"Got {lvls.Count} lvl files");
         var ids = lvls.Select(i => i.Value).Where(i => i.LevelObjects is not null).SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct().ToList();
-        Msg($"Got {ids.Count} unique lots");
 
         using var clientStream = new FileStream(clientDirectory, FileMode.Open, FileAccess.Read);
         using var clientReader = new BitReader(clientStream);
@@ -134,35 +130,31 @@ internal static class LuzFileParser
             Distinct().
             ToList();
         
-        await default(ToWorld);
-        pbi.UpdateProgress(0.166666f, $"Processing nifs", "");
-        await default(ToBackground);
+        var processed = 0;
+        var total = renderAssets.Count;
 
         var needsDone = new List<string>(renderAssets);
 
+        var tasks = new List<Task>();
         while (needsDone.Count > 0)
         {
-            var count = Math.Min(needsDone.Count, 5);
+            var count = Math.Min(needsDone.Count, 10 - tasks.Count);
             var doing = needsDone.Take(count);
             needsDone.RemoveRange(0, count);
-            var tasks = doing.Select(i => root.World.RootSlot.StartGlobalTask(async () =>
+            var toAppend = doing.Select(i => root.World.RootSlot.StartGlobalTask(async () =>
             {
                 if (Path.GetExtension(i) is not LegoUniverseImporter.NIF_EXTENSION) return; //todo: kfm
                 var fullPath = Path.Combine(clientBaseDirectory, i);
                 await NiFileParser.ParseNiFile(nifs, fullPath, i, pbi);
-            })).ToArray();
-            await Task.WhenAll(tasks);
+            }));
+            tasks.AddRange(toAppend);
+            await Task.WhenAny(tasks);
+            processed += tasks.RemoveAll(i => i.IsCompleted);
+            await default(ToWorld);
+            pbi.UpdateProgress((processed / (float)total) * 0.33333f, $"Processing nifs {processed}/{total}", "");
+            await default(ToBackground);
         }
-        /*
-        var tasks = renderAssets.Select(i => root.World.RootSlot.StartGlobalTask(async () =>
-        {
-            if (Path.GetExtension(i) is not LegoUniverseImporter.NIF_EXTENSION) return; //todo: kfm
-            var fullPath = Path.Combine(clientBaseDirectory, i);
-            await NiFileParser.ParseNiFile(nifs, fullPath, i, pbi);
-        })).ToArray();
-        await Task.WhenAll(tasks);
-        */
-        
+
         /*
         for (var index = 0; index < renderAssets.Count; index++)
         {
@@ -194,18 +186,12 @@ internal static class LuzFileParser
 
                 await default(ToWorld);
                 var get = nifs.FindChild(partialPath)?.FindChild("Scene");
-                await default(ToBackground);
-
                 if (get is not null)
                 {
-                    await default(ToWorld);
                     var templateRenderComponent = template.AddSlot("RenderComponent");
                     var d = get.Duplicate(templateRenderComponent, false);
-                    await default(ToBackground);
-
                     if (database.GetPhysicsComponent(id) is not null)
                     {
-                        await default(ToWorld);
                         foreach (var mesh in d.GetComponentsInChildren<MeshRenderer>())
                         {
                             if (mesh is SkinnedMeshRenderer) continue;
@@ -213,10 +199,9 @@ internal static class LuzFileParser
                             collider.Mesh.Target = mesh.Mesh.Target;
                             collider.CharacterCollider.Value = true;
                         }
-
-                        await default(ToBackground);
                     }
                 }
+                await default(ToBackground);
             }
         }
 
@@ -234,7 +219,7 @@ internal static class LuzFileParser
                     var o = template.Duplicate(sBlock, false);
                     o.Name = objects.ObjectId.ToString();
                     o.LocalPosition = objects.Position.ToFrooxEngine();
-                    o.LocalRotation = objects.Rotation; //TODO
+                    o.LocalRotation = objects.Rotation.ToFrooxEngine();
                     o.LocalScale = new float3(objects.Scale, objects.Scale, objects.Scale);
                     if (objects.LegoInfo.TryGetValue("renderDisabled", out var disabled) && (bool)disabled)
                     {

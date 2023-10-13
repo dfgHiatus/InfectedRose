@@ -60,7 +60,7 @@ internal static class NiHeaderParser
         var slot = header.AddSlot(slotName);
         foreach (var item in collection)
         {
-            var scStrings = header.AddSlot(slotChildName);
+            var scStrings = slot.AddSlot(slotChildName);
             var dVar = scStrings.AttachComponent<DynamicValueVariable<T>>();
             dVar.VariableName.Value = LegoUniverseImporter.DYN_VAR_SPACE_PREFIX + item.ToString();
             dVar.Value.Value = item;

@@ -10,35 +10,62 @@ namespace InfectedRose.Resonite;
 
 internal static class NiConversions
 {
-    internal static colorX ToFrooxEngine(this Color3 color)
-    {
-        return new colorX(color.R, color.G, color.B);
-    }
+    internal static colorX ToFrooxEngine(this Color3 color) => new(color.R, color.G, color.B);
 
-    internal static colorX ToFrooxEngine(this Color4 color)
-    {
-        return new colorX(color.R, color.G, color.B, color.A);
-    }
+    internal static colorX ToFrooxEngine(this Color4 color) => new(color.R, color.G, color.B, color.A);
 
+    internal static colorX ToFrooxEngine(this ByteColor4 color) =>
+        new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
+    
     internal static floatQ ToFrooxEngine(this Matrix3X3 mat)
     {
         var q = Quaternion.CreateFromRotationMatrix(mat.FourByFour);
+
+        /*
+        var data = new[]{ q.X, q.Y, q.Z, q.W };
+
+        var swizzle = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_QUATERNIONSWIZZLE);
+
+        q = new Quaternion(data[swizzle.X], data[swizzle.Y], data[swizzle.Z], data[swizzle.W]);
+
+        var m = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_QUATERNIONMULTIPLIER);
+
+        return new floatQ(q.X * m.X, q.Y * m.Y, q.Z * m.Z, q.W * m.W);
+        */
         return q.ToFrooxEngine();
     }
     
     internal static floatQ ToFrooxEngine(this Quaternion q)
     {
-        return new floatQ(-q.X, -q.Y, q.Z, q.W); // TODO: axis conversion
+        /*
+        var swizzle = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_QUATERNIONSWIZZLE);
+
+        var data = new[]{ q.X, q.Y, q.Z, q.W };
+        
+        q = new Quaternion(data[swizzle.X], data[swizzle.Y], data[swizzle.Z], data[swizzle.W]);
+
+        var m = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_QUATERNIONMULTIPLIER);
+        
+        return new floatQ(q.X * m.X, q.Y * m.Y, q.Z * m.Z, q.W * m.W);
+        */
+        return new floatQ(-q.X, -q.Z, q.Y, q.W);
     }
 
     internal static float3 ToFrooxEngine(this Vector3 vec)
     {
-        return new float3(vec.X, vec.Y, -vec.Z);
-    }
+        /*
+        var data = new[]{ vec.X, vec.Y, vec.Z };
 
-    internal static int[] Data(this Nif.Triangle tri)
-    {
-        return new[] { (int)tri.V1, tri.V2, tri.V3 };
+        var swizzle = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_VECTORSWIZZLE);
+
+        vec = new float3(data[swizzle.X], data[swizzle.Y], data[swizzle.Z]);
+
+        var m = LegoUniverseImporter.Config.GetValue(LegoUniverseImporter.DEBUG_VECTORMULTIPLIER);
+
+        return new float3(vec.X * m.X, vec.Y * m.Y, vec.Z * m.Z);
+        */
+        
+        return new float3(-vec.X, vec.Z, -vec.Y);
     }
 
     internal static MeshX ToFrooxEngine(this NiTriShapeData data, NiSkinInstance skin = null)
@@ -120,12 +147,12 @@ internal static class NiConversions
         var triangles = file.Triangulate();
         var mesh = new MeshX();
         //var offset = new float3(file.Chunks[0].HeightMap.PositionX, 0, file.Chunks[0].HeightMap.PositionY);
-        var mul = new float3(-1, 1, -1);
+        var mul = new float3(-1, 0, 0);
         foreach (var tri in triangles)
         {
-            var v1 = mesh.AddVertex(tri.Position1.ToFrooxEngine().zyx * mul);
-            var v2 = mesh.AddVertex(tri.Position2.ToFrooxEngine().zyx * mul);
-            var v3 = mesh.AddVertex(tri.Position3.ToFrooxEngine().zyx * mul);
+            var v1 = mesh.AddVertex(tri.Position1.ToFrooxEngine() * mul);
+            var v2 = mesh.AddVertex(tri.Position2.ToFrooxEngine() * mul);
+            var v3 = mesh.AddVertex(tri.Position3.ToFrooxEngine() * mul);
             mesh.AddTriangle(v1, v2, v3);
         }
 
