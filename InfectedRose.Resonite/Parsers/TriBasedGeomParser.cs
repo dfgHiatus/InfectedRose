@@ -67,6 +67,7 @@ internal static class TriBasedGeomParser
 
     internal static async Task<IAssetProvider<Material>> DetermineMaterial(Slot slot, NiTriBasedGeom nts, NiFileContext context)
     {
+        /*
         await default(ToBackground);
         NiVertexColorProperty niVertexColorProperty = null;
         NiAlphaProperty niAlphaProperty = null;
@@ -319,9 +320,26 @@ internal static class TriBasedGeomParser
             }
             await default(ToBackground);
         }
+        */
 
         await default(ToWorld);
         var pbsm = slot.AttachComponent<PBS_VertexColorMetallic>();
+
+        foreach (var property in nts.Properties.Select(i => i.Value))
+        {
+            if (property is NiTexturingProperty texture)
+            {
+                if (texture.HasBaseTexture)
+                {
+                    pbsm.AlbedoTexture.Target = await ImportTexture(slot, context, texture.BaseTexture);
+                }
+                if (texture.HasGlowTexture)
+                    pbsm.EmissiveMap.Target = await ImportTexture(slot, context, texture.GlowTexture);
+                if (texture.HasNormalTexture)
+                    pbsm.NormalMap.Target = await ImportTexture(slot, context, texture.NormalTexture);
+            }
+        }
+        
         await default(ToBackground);
 
         return pbsm;
@@ -335,7 +353,11 @@ internal static class TriBasedGeomParser
             return null;
         var overallPath = Path.Combine(Path.GetDirectoryName(context.Path), path);
         if (!File.Exists(overallPath))
+        {
+            Msg(overallPath);
             return null;
+        }
+            
         var url = await Engine.Current.LocalDB.ImportLocalAssetAsync(overallPath, LocalDB.ImportLocation.Copy);
 
         await default(ToWorld);

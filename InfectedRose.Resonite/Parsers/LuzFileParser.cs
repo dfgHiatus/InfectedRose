@@ -119,6 +119,8 @@ internal static class LuzFileParser
         }
         var ids = lvls.Select(i => i.Value).Where(i => i.LevelObjects is not null).SelectMany(i => i.LevelObjects.Templates).Select(i => i.Lot).Distinct().ToList();
 
+        var sceneIds = file.Scenes.Select(i => i.SceneId).ToList();
+
         using var clientStream = new FileStream(clientDirectory, FileMode.Open, FileAccess.Read);
         using var clientReader = new BitReader(clientStream);
         var databaseFile = new DatabaseFile();
@@ -159,7 +161,7 @@ internal static class LuzFileParser
             await default(ToBackground);
         }
         await default(ToWorld);
-        pbi.UpdateProgress(0.33333f, $"Finishing up processing nifs...", "");
+        pbi.UpdateProgress(0.33333f, "Finishing up processing nifs...", "");
         await default(ToBackground);
         await Task.WhenAll(tasks);
 
@@ -245,13 +247,14 @@ internal static class LuzFileParser
                             mesh.Enabled = false;
                         }
                     }
+                    /*
                     else
                     {
                         var scene = file.Scenes.FirstOrDefault(i => i.FileName == lvl.Key);
                         if (scene is not null && 
                             objects.LegoInfo.TryGetValue("sceneIDOverrideEnabled", out var shouldOverride) &&
                             (bool)shouldOverride && objects.LegoInfo.TryGetValue("sceneIDOverride", out var over) &&
-                            (int)over != (int)scene.SceneId)
+                            !sceneIds.Contains((uint)(int)over))
                         {
                             foreach (var mesh in o.GetComponentsInChildren<MeshRenderer>())
                             {
@@ -259,6 +262,7 @@ internal static class LuzFileParser
                             }
                         }
                     }
+                    */
                 }
             }
         }

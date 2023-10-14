@@ -90,7 +90,11 @@ internal static class NiConversions
                 }
 
                 if (data.HasVertexColors) vert.Color = data.VertexColors[i].ToFrooxEngine().BaseColor;
-                for (var u = 0; u < data.Uv.Length; u++) vert.SetUV(u, data.Uv[u][i]);
+                for (var u = 0; u < data.Uv.Length; u++)
+                {
+                    var uvData = data.Uv[u][i];
+                    vert.SetUV(u, new float2(uvData.X, 1 - uvData.Y));
+                }
 
                 // Add vertex skinning data, if skinned
                 if (skinned)
@@ -169,7 +173,6 @@ internal static class NiConversions
     {
         var triangles = file.Triangulate();
         var mesh = new MeshX();
-        //var offset = new float3(file.Chunks[0].HeightMap.PositionX, 0, file.Chunks[0].HeightMap.PositionY);
         var mul = new float3(-1, 1, 1);
         foreach (var tri in triangles)
         {
