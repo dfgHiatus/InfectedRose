@@ -10,6 +10,7 @@ namespace InfectedRose.Resonite;
 
 internal static class NiConversions
 {
+    public const float SCALING_FACTOR = 0.5f;
     internal static colorX ToFrooxEngine(this Color3 color) => new(color.R, color.G, color.B);
 
     internal static colorX ToFrooxEngine(this Color4 color) => new(color.R, color.G, color.B, color.A);
@@ -65,16 +66,16 @@ internal static class NiConversions
         return new float3(vec.X * m.X, vec.Y * m.Y, vec.Z * m.Z);
         */
         
-        return new float3(-vec.X, vec.Z, -vec.Y);
+        return new float3(-vec.X, vec.Z, -vec.Y) * SCALING_FACTOR;
     }
 
-    internal static MeshX ToFrooxEngine(this NiTriShapeData data, NiSkinInstance skin = null)
+    internal static MeshX ToFrooxEngine(this NiTriBasedGeomData data, NiSkinInstance skin = null)
     {
         var mesh = new MeshX();
         var partition = skin?.Partition.Value;
 
         var skinned = skin is not null;
-        
+
         if (data.HasVertices)
         {
             for (var i = 0; i < data.NumVertices; i++)
@@ -87,6 +88,7 @@ internal static class NiConversions
                     //if ((data.DataFlags & 61440) != 0) vert.Tangent = data.Tangents[i].ToFrooxEngine();
                     // No bitangents
                 }
+
                 if (data.HasVertexColors) vert.Color = data.VertexColors[i].ToFrooxEngine().BaseColor;
                 for (var u = 0; u < data.Uv.Length; u++) vert.SetUV(u, data.Uv[u][i]);
 
@@ -101,7 +103,7 @@ internal static class NiConversions
                             var currentVert = currentPartition.VertexMap[i];
                             var bindingCount = currentPartition.NumWeightsPerVertex;
                             var boneIndices = currentPartition.BoneIndices[i];
-                            var weightsCapped = Math.Min(4, (int)bindingCount);
+                            var weightsCapped = Math.Min(4, (int) bindingCount);
                             for (var w = 0; w < weightsCapped; w++)
                             {
                                 vert.BoneBinding.AddBone(currentPartition.Bones[boneIndices[0]],
@@ -126,17 +128,38 @@ internal static class NiConversions
                     var skinTransform = boneData2.SkinTransform;
                     var pos = skinTransform.Translation.ToFrooxEngine();
                     var rotation = skinTransform.Rotation.ToFrooxEngine();
-                    var scale = new float3(skinTransform.Scale,skinTransform.Scale,skinTransform.Scale);
+                    var scale = new float3(skinTransform.Scale, skinTransform.Scale, skinTransform.Scale);
                     bone.BindPose = float4x4.Transform(pos, rotation, scale);
                 }
             }
 
-            for (var i = 0; i < data.TriangleCount; i++)
+            switch (data)
             {
-                var tri = data.Triangles[i];
-                mesh.AddTriangle(tri.V1, tri.V2, tri.V3);
+                case NiTriShapeData triShape:
+                {
+                    for (var i = 0; i < data.TriangleCount; i++)
+                    {
+                        var tri = triShape.Triangles[i];
+                        mesh.AddTriangle(tri.V1, tri.V2, tri.V3);
+                    }
+
+                    break;
+                }
+                case NiTriStripsData triStrips:
+                {
+                    foreach (var point in triStrips.Points)
+                    {
+                        for (var i = 0; i < point.Length - 2; i++)
+                        {
+                            if (i % 2 == 0)
+                                mesh.AddTriangle(point[i], point[i + 1], point[i + 2]);
+                            else
+                                mesh.AddTriangle(point[i], point[i + 2], point[i + 1]);
+                        }
+                    }
+                    break;
+                }
             }
-       
         }
         mesh.ReverseWinding();
         return mesh;
@@ -147,7 +170,7 @@ internal static class NiConversions
         var triangles = file.Triangulate();
         var mesh = new MeshX();
         //var offset = new float3(file.Chunks[0].HeightMap.PositionX, 0, file.Chunks[0].HeightMap.PositionY);
-        var mul = new float3(-1, 0, 0);
+        var mul = new float3(-1, 1, 1);
         foreach (var tri in triangles)
         {
             var v1 = mesh.AddVertex(tri.Position1.ToFrooxEngine() * mul);

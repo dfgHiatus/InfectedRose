@@ -56,7 +56,8 @@ internal static class LuzFileParser
         pbi.UpdateProgress(0f, "Creating root object slots", "");
         
         var terrainSlot = root.AddSlot("Terrain");
-        terrainSlot.LocalScale = float3.One * 0.25f;
+        //terrainSlot.LocalScale = float3.One * 0.25f;
+        terrainSlot.LocalRotation = floatQ.Euler(0, 0, 90); //TODO: do the conversion properly
         
         var nifs = root.AddSlot("NifTemplates");
         nifs.ActiveSelf = false;
@@ -65,7 +66,7 @@ internal static class LuzFileParser
         objectTemplates.ActiveSelf = false;
         
         var sBlock = root.AddSlot("Scene");
-        sBlock.LocalScale = float3.One * 0.25f;
+        //sBlock.LocalScale = float3.One * 0.25f;
         
         pbi.UpdateProgress(0f, "Parsing terrain file", "");
         await default(ToBackground);
@@ -97,6 +98,7 @@ internal static class LuzFileParser
             var terrainCollider = terrainSlot.AttachComponent<MeshCollider>();
             terrainCollider.Mesh.Target = staticMesh;
             terrainCollider.CharacterCollider.Value = true;
+            terrainCollider.Type.Value = ColliderType.Static;
 
             pbi.UpdateProgress(0f, "Parsing lvl files", "");
             await default(ToBackground);
@@ -126,7 +128,7 @@ internal static class LuzFileParser
         var renderAssets = ids.
             Select(database.GetRenderComponent).
             Where(get => get is not null).
-            Select(i => i.render_asset.Replace(@"\\", "/").ToLower()).
+            Select(i => i.render_asset.Replace(@"\\", "/").Replace(@"\", "/").ToLower().Trim()).
             Distinct().
             ToList();
         
@@ -134,26 +136,32 @@ internal static class LuzFileParser
         var total = renderAssets.Count;
 
         var needsDone = new List<string>(renderAssets);
-
         var tasks = new List<Task>();
         while (needsDone.Count > 0)
         {
             var count = Math.Min(needsDone.Count, 10 - tasks.Count);
-            var doing = needsDone.Take(count);
-            needsDone.RemoveRange(0, count);
-            var toAppend = doing.Select(i => root.World.RootSlot.StartGlobalTask(async () =>
+            if (count > 0)
             {
-                if (Path.GetExtension(i) is not LegoUniverseImporter.NIF_EXTENSION) return; //todo: kfm
-                var fullPath = Path.Combine(clientBaseDirectory, i);
-                await NiFileParser.ParseNiFile(nifs, fullPath, i, pbi);
-            }));
-            tasks.AddRange(toAppend);
+                var doing = needsDone.Take(count);
+                needsDone.RemoveRange(0, count);
+                var toAppend = doing.Select(i => root.World.RootSlot.StartGlobalTask(async () =>
+                {
+                    if (Path.GetExtension(i) is not LegoUniverseImporter.NIF_EXTENSION) return; //todo: kfm
+                    var fullPath = Path.Combine(clientBaseDirectory, i);
+                    await NiFileParser.ParseNiFile(nifs, fullPath, i, pbi);
+                }));
+                tasks.AddRange(toAppend);
+            }
             await Task.WhenAny(tasks);
             processed += tasks.RemoveAll(i => i.IsCompleted);
             await default(ToWorld);
-            pbi.UpdateProgress((processed / (float)total) * 0.33333f, $"Processing nifs {processed}/{total}", "");
+            pbi.UpdateProgress((processed / (float) total) * 0.33333f, $"Processing nifs {processed}/{total}", "");
             await default(ToBackground);
         }
+        await default(ToWorld);
+        pbi.UpdateProgress(0.33333f, $"Finishing up processing nifs...", "");
+        await default(ToBackground);
+        await Task.WhenAll(tasks);
 
         /*
         for (var index = 0; index < renderAssets.Count; index++)
@@ -182,15 +190,19 @@ internal static class LuzFileParser
             var renderAsset = database.GetRenderComponent(id);
             if (renderAsset is not null)
             {
-                var partialPath = renderAsset.render_asset.Replace(@"\\", "/").ToLower();
+                var partialPath = renderAsset.render_asset.Replace(@"\\", "/").Replace(@"\", "/").ToLower().Trim();
 
                 await default(ToWorld);
                 var get = nifs.FindChild(partialPath)?.FindChild("Scene");
                 if (get is not null)
                 {
                     var templateRenderComponent = template.AddSlot("RenderComponent");
+                    templateRenderComponent.Tag = get.Parent.Name;
                     var d = get.Duplicate(templateRenderComponent, false);
-                    if (database.GetPhysicsComponent(id) is not null)
+
+                    var phys = database.GetPhysicsComponent(id);
+                    
+                    if (phys is not null)
                     {
                         foreach (var mesh in d.GetComponentsInChildren<MeshRenderer>())
                         {
@@ -198,6 +210,10 @@ internal static class LuzFileParser
                             var collider = mesh.Slot.AttachComponent<MeshCollider>();
                             collider.Mesh.Target = mesh.Mesh.Target;
                             collider.CharacterCollider.Value = true;
+                            if (phys.collisionGroup is not 21) //TODO: figure out how collision groups actually work
+                            {
+                                collider.Type.Value = ColliderType.Static;
+                            }
                         }
                     }
                 }
@@ -217,6 +233,7 @@ internal static class LuzFileParser
                 if (template is not null)
                 {
                     var o = template.Duplicate(sBlock, false);
+                    o.Tag = o.Name;
                     o.Name = objects.ObjectId.ToString();
                     o.LocalPosition = objects.Position.ToFrooxEngine();
                     o.LocalRotation = objects.Rotation.ToFrooxEngine();
@@ -231,9 +248,10 @@ internal static class LuzFileParser
                     else
                     {
                         var scene = file.Scenes.FirstOrDefault(i => i.FileName == lvl.Key);
-                        if (objects.LegoInfo.TryGetValue("sceneIDOverrideEnabled", out var shouldOverride) &&
+                        if (scene is not null && 
+                            objects.LegoInfo.TryGetValue("sceneIDOverrideEnabled", out var shouldOverride) &&
                             (bool)shouldOverride && objects.LegoInfo.TryGetValue("sceneIDOverride", out var over) &&
-                            (int)over != scene?.SceneId)
+                            (int)over != (int)scene.SceneId)
                         {
                             foreach (var mesh in o.GetComponentsInChildren<MeshRenderer>())
                             {

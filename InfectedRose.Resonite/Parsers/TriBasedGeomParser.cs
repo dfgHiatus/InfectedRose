@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 
 namespace InfectedRose.Resonite.Parsers;
 
-internal static class TriShapeParser
+internal static class TriBasedGeomParser
 {
     static void Msg(object o)
     {
         ResoniteMod.Msg(o);
     }
 
-    internal static async Task ParseTriShape(Slot slot, NiFileContext context, NiTriShape shape)
+    internal static async Task ParseTriGeom(Slot slot, NiFileContext context, NiTriBasedGeom shape)
     {
         await default(ToBackground);
         context.ObjectSlots.Add(shape, slot);
@@ -27,7 +27,8 @@ internal static class TriShapeParser
         await default(ToBackground);
 
         var skinned = shape.Skin.Value is not null;
-        var mesh = (shape.Data.Value as NiTriShapeData).ToFrooxEngine(shape.Skin.Value);
+        
+        var mesh = (shape.Data.Value as NiTriBasedGeomData).ToFrooxEngine(shape.Skin.Value);
 
         var localDb = Engine.Current.LocalDB;
         var tempFilePath = localDb.GetTempFilePath(".meshx");
@@ -60,11 +61,11 @@ internal static class TriShapeParser
 
         mr.Mesh.Target = staticMesh;
         mr.Materials.Add(mat);
-        slot.AttachComponent<MeshCollider>();
+        //slot.AttachComponent<MeshCollider>();
         await default(ToBackground);
     }
 
-    internal static async Task<IAssetProvider<Material>> DetermineMaterial(Slot slot, NiTriShape nts, NiFileContext context)
+    internal static async Task<IAssetProvider<Material>> DetermineMaterial(Slot slot, NiTriBasedGeom nts, NiFileContext context)
     {
         await default(ToBackground);
         NiVertexColorProperty niVertexColorProperty = null;
